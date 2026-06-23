@@ -1,0 +1,4 @@
+TypeError: Cannot read properties of undefined (reading 'value')
+    at Object.toWireType (file:///C:/Users/silam/OneDrive/Documents/Lab%20viewer/HVAC_Dev/node_modules/libavoid-js/dist/index-node.mjs:16:20283)
+    at Router.setRoutingOption (eval at Ne (file:///C:/Users/silam/OneDrive/Documents/Lab%20viewer/HVAC_Dev/node_modules/libavoid-js/dist/index-node.mjs:16:31), <anonymous>:7:39)
+    at main (C:\Users\silam\OneDrive\Documents\Lab viewer\HVAC_Dev\avoid_router.js:19:12)

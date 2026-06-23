@@ -1,0 +1,328 @@
+{
+  "calculation_sections": [
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "TXV out"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Coil in "
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Coil out"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "T saturation"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Super heat"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Density"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        "Entropy"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "TXV out"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Coil in "
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Coil out"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "T saturation"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Super heat"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Density"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        "Entropy"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "TXV out"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Coil in "
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Coil out"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "T saturation"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Super heat"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Density"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        "Entropy"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Press.suc"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Comp.in"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "T saturation"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Super heat"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Density"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        "Entropy"
+      ]
+    },
+    {
+      "section_name": "Comp outlet",
+      "fields": [
+        "T comp outlet"
+      ]
+    },
+    {
+      "section_name": "Comp outlet",
+      "fields": [
+        "Comp. rpm"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "T cond inlet"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "Press disch"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "T cond. Outlet"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "T saturation"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "Sub cooling"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "Cond.water.in"
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        "Cond.water.out"
+      ]
+    },
+    {
+      "section_name": "At TXV LH",
+      "fields": [
+        "TXV in-LH"
+      ]
+    },
+    {
+      "section_name": "At TXV LH",
+      "fields": [
+        "T_Saturation"
+      ]
+    },
+    {
+      "section_name": "At TXV LH",
+      "fields": [
+        "Subcooling"
+      ]
+    },
+    {
+      "section_name": "At TXV LH",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "At TXV CTR",
+      "fields": [
+        "TXV in-CTR"
+      ]
+    },
+    {
+      "section_name": "At TXV CTR",
+      "fields": [
+        "T_Saturation"
+      ]
+    },
+    {
+      "section_name": "At TXV CTR",
+      "fields": [
+        "Subcooling"
+      ]
+    },
+    {
+      "section_name": "At TXV CTR",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "At TXV RH",
+      "fields": [
+        "TXV in-LH"
+      ]
+    },
+    {
+      "section_name": "At TXV RH",
+      "fields": [
+        "T_Saturation"
+      ]
+    },
+    {
+      "section_name": "At TXV RH",
+      "fields": [
+        "Subcooling"
+      ]
+    },
+    {
+      "section_name": "At TXV RH",
+      "fields": [
+        "Enthalpy"
+      ]
+    },
+    {
+      "section_name": "TOTAL",
+      "fields": [
+        "Mass flow rate"
+      ]
+    },
+    {
+      "section_name": "TOTAL",
+      "fields": [
+        "Cooling cap"
+      ]
+    }
+  ]
+}

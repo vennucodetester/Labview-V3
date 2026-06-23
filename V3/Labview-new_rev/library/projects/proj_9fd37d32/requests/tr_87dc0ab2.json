@@ -1,0 +1,68 @@
+{
+  "id": "tr_87dc0ab2",
+  "request_no": "TR-2026-003",
+  "project_id": "proj_9fd37d32",
+  "elp_code": "PERF",
+  "title": "",
+  "objective": "",
+  "case_model": "ID6SU12WE",
+  "topology": {
+    "case_family": "Reach-in (non-modular)",
+    "system_type": "shared",
+    "modules": 2,
+    "circuits_per_coil": 6,
+    "condenser_cooling": "Water",
+    "doored": false
+  },
+  "parts": {},
+  "settings": {
+    "refrigerant": "R290",
+    "charge_oz": null,
+    "water_gpm": null,
+    "fan_cfm": null,
+    "defrost": "",
+    "setpoints": ""
+  },
+  "targets": [
+    {
+      "name": "Product temp",
+      "min": null,
+      "max": 38.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Coil superheat",
+      "min": 6.0,
+      "max": 9.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Subcooling",
+      "min": 5.0,
+      "max": 15.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Capacity",
+      "min": null,
+      "max": null,
+      "unit": "BTU/hr"
+    },
+    {
+      "name": "DOE energy",
+      "min": null,
+      "max": null,
+      "unit": "kWh/day"
+    }
+  ],
+  "revisions": [
+    {
+      "rev": "A",
+      "at": "2026-06-13T23:58:56",
+      "by": "silam",
+      "note": "Initial release"
+    }
+  ],
+  "created_by": "silam",
+  "created_at": "2026-06-13T23:58:56"
+}

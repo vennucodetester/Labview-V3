@@ -1,0 +1,136 @@
+{
+  "id": "tr_73dc33ea",
+  "request_no": "TR-2026-001",
+  "project_id": "proj_9fd37d32",
+  "elp_code": "PERF",
+  "title": "PERF TEST",
+  "objective": "DOE 24 HR DOOR OPENINGS\nWOOD LOAD",
+  "case_model": "ID6SU12WE",
+  "topology": {
+    "case_family": "Modular",
+    "system_type": "shared",
+    "modules": 2,
+    "circuits_per_coil": 6,
+    "condenser_cooling": "Water",
+    "doored": false
+  },
+  "parts": {
+    "compressor": {
+      "catalog_id": "comp_9ebd7f57",
+      "model": "SCROLL VARIABLE SPEED",
+      "snapshot": {
+        "model": "SCROLL VARIABLE SPEED",
+        "rated_speed_rpm": 5000.0,
+        "rated_mdot_lbhr": 20.0,
+        "rated_evap_temp_f": -5.0,
+        "rated_return_gas_temp_f": 20.0,
+        "notes": "JUST A SAMMPLE"
+      }
+    },
+    "condenser": {
+      "catalog_id": "cond_a3c79649",
+      "model": "WATER COOLED",
+      "snapshot": {
+        "model": "WATER COOLED",
+        "company_pn": "3204562",
+        "cooling_type": "Water",
+        "design_gpm": 6.0,
+        "notes": "SAMPLE"
+      }
+    },
+    "txv": {
+      "catalog_id": "txv_cf369b9a",
+      "model": "A10",
+      "snapshot": {
+        "model": "A10",
+        "company_pn": "3105462",
+        "nominal_tons": 0.5,
+        "rated_refrigerant": "R290"
+      }
+    },
+    "coil": {
+      "catalog_id": "coil_5c0d6782",
+      "model": "EVAP",
+      "snapshot": {
+        "model": "EVAP",
+        "company_pn": "3562516",
+        "circuits": 6.0,
+        "fpi": 4.0,
+        "rows": 5.0,
+        "notes": "SAMPLE"
+      }
+    },
+    "distributor": {
+      "catalog_id": "dist_415040b5",
+      "model": "6 CIRCUIT",
+      "snapshot": {
+        "model": "6 CIRCUIT",
+        "company_pn": "231564",
+        "outlets": 6.0,
+        "nozzle_size": "1/4",
+        "notes": "SAMPLE"
+      }
+    },
+    "fan": {
+      "catalog_id": "fan_2100098a",
+      "model": "240CFM",
+      "snapshot": {
+        "model": "240CFM",
+        "company_pn": "654123",
+        "diameter_in": 8.0,
+        "cfm": 240.0,
+        "speed_rpm": 5000.0
+      }
+    }
+  },
+  "settings": {
+    "refrigerant": "R290",
+    "charge_oz": 400.0,
+    "water_gpm": 6.0,
+    "fan_cfm": 240.0,
+    "defrost": "OFF TIME/ 8HR",
+    "setpoints": "26"
+  },
+  "targets": [
+    {
+      "name": "Product temp",
+      "min": 20.0,
+      "max": 38.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Coil superheat",
+      "min": 6.0,
+      "max": 9.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Subcooling",
+      "min": 5.0,
+      "max": 15.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Capacity",
+      "min": null,
+      "max": null,
+      "unit": "BTU/hr"
+    },
+    {
+      "name": "DOE energy",
+      "min": null,
+      "max": null,
+      "unit": "kWh/day"
+    }
+  ],
+  "revisions": [
+    {
+      "rev": "A",
+      "at": "2026-06-11T21:20:15",
+      "by": "silam",
+      "note": "Initial release"
+    }
+  ],
+  "created_by": "silam",
+  "created_at": "2026-06-11T21:20:15"
+}

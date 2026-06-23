@@ -1,0 +1,7 @@
+__pycache__/
+node_modules/
+nul
+*.pyc
+*.zip
+logs/
+audit_logs/

@@ -1,0 +1,326 @@
+{
+  "title": "Refrigeration System Calculation Output Structure",
+  "description": "Complete mapping of calculation sections, fields, and sensor labels",
+  "sections": [
+    {
+      "section_name": "AT LH coil",
+      "fields": [
+        {
+          "field_name": "TXV out",
+          "sensor_label": "T_1a-lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil in",
+          "sensor_label": "T_1b-lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil out",
+          "sensor_label": "T_2a-LH",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T saturation",
+          "sensor_label": "T_sat.lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Super heat",
+          "sensor_label": "S.H_lh coil",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Density",
+          "sensor_label": "D_coil lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_coil lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Entropy",
+          "sensor_label": "S_coil lh",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "AT CTR coil",
+      "fields": [
+        {
+          "field_name": "TXV out",
+          "sensor_label": "T_1a-ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil in",
+          "sensor_label": "T_1b-ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil out",
+          "sensor_label": "T_2a-ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T saturation",
+          "sensor_label": "T_sat.ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Super heat",
+          "sensor_label": "S.H_ctr coil",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Density",
+          "sensor_label": "D_coil ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_coil ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Entropy",
+          "sensor_label": "S_coil ctr",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "AT RH coil",
+      "fields": [
+        {
+          "field_name": "TXV out",
+          "sensor_label": "T_1a-rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil in",
+          "sensor_label": "T_1c-rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Coil out",
+          "sensor_label": "T_2a-RH",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T saturation",
+          "sensor_label": "T_sat.rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Super heat",
+          "sensor_label": "S.H_rh coil",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Density",
+          "sensor_label": "D_coil rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_coil rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Entropy",
+          "sensor_label": "S_coil rh",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "At compressor inlet",
+      "fields": [
+        {
+          "field_name": "Press.suc",
+          "sensor_label": "P_suction",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Comp.in",
+          "sensor_label": "T_2b",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T saturation",
+          "sensor_label": "T_sat.comp.in",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Super heat",
+          "sensor_label": "S.H_total",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Density",
+          "sensor_label": "D_comp.in",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_comp.in",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Entropy",
+          "sensor_label": "S_comp.in",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "Comp outlet",
+      "fields": [
+        {
+          "field_name": "T comp outlet",
+          "sensor_label": "T_3a",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Comp. rpm",
+          "sensor_label": "rpm",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "At Condenser",
+      "fields": [
+        {
+          "field_name": "T cond inlet",
+          "sensor_label": "T_3b",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Press disch",
+          "sensor_label": "P_disch",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T cond. Outlet",
+          "sensor_label": "T_4a",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T saturation",
+          "sensor_label": "T_sat.cond",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Sub cooling",
+          "sensor_label": "S.C",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Cond.water.in",
+          "sensor_label": "T_waterin",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Cond.water.out",
+          "sensor_label": "T_waterout",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "At TXV LH",
+      "fields": [
+        {
+          "field_name": "TXV in-LH",
+          "sensor_label": "T_4b-lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T_Saturation",
+          "sensor_label": "T_sat.txv.lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Subcooling",
+          "sensor_label": "S.C-txv.lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_txv.lh",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "At TXV CTR",
+      "fields": [
+        {
+          "field_name": "TXV in-CTR",
+          "sensor_label": "T_4b-ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T_Saturation",
+          "sensor_label": "T_sat.txv.ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Subcooling",
+          "sensor_label": "S.C-txv.ctr",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_txv.ctr",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "At TXV RH",
+      "fields": [
+        {
+          "field_name": "TXV in-LH",
+          "sensor_label": "T_4b-lh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "T_Saturation",
+          "sensor_label": "T_sat.txv.rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Subcooling",
+          "sensor_label": "S.C-txv.rh",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Enthalpy",
+          "sensor_label": "H_txv.rh",
+          "is_calculated": false
+        }
+      ]
+    },
+    {
+      "section_name": "TOTAL",
+      "fields": [
+        {
+          "field_name": "Mass flow rate",
+          "sensor_label": "m_dot",
+          "is_calculated": false
+        },
+        {
+          "field_name": "Cooling cap",
+          "sensor_label": "qc",
+          "is_calculated": false
+        }
+      ]
+    }
+  ]
+}

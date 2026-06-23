@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Product temp",
+    "min": null,
+    "max": 38.0,
+    "unit": "°F"
+  },
+  {
+    "name": "Coil superheat",
+    "min": 6.0,
+    "max": 9.0,
+    "unit": "°F"
+  },
+  {
+    "name": "Subcooling",
+    "min": 5.0,
+    "max": 15.0,
+    "unit": "°F"
+  },
+  {
+    "name": "Capacity",
+    "min": null,
+    "max": null,
+    "unit": "BTU/hr"
+  },
+  {
+    "name": "DOE energy",
+    "min": null,
+    "max": null,
+    "unit": "kWh/day"
+  }
+]

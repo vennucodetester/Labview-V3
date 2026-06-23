@@ -1,0 +1,26 @@
+[
+  {
+    "code": "PERF",
+    "name": "Performance (incl. NSF / DOE)"
+  },
+  {
+    "code": "UL",
+    "name": "UL Safety"
+  },
+  {
+    "code": "ELP0071",
+    "name": "Transit Test"
+  },
+  {
+    "code": "LOAD",
+    "name": "Load Test"
+  },
+  {
+    "code": "VIB",
+    "name": "Vibration"
+  },
+  {
+    "code": "SOUND",
+    "name": "Sound"
+  }
+]

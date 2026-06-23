@@ -1,0 +1,936 @@
+{
+  "version": "2.0",
+  "computed_columns": {},
+  "rules": {
+    "RF-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 10,
+      "expressions": {
+        "CRITICAL": {
+          "join": "at_least",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "slope",
+              "operator": ">",
+              "value": 0.1
+            },
+            {
+              "column": "S.C",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.05
+            },
+            {
+              "column": "P_suction",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.02
+            },
+            {
+              "column": "qc",
+              "function": "slope",
+              "operator": "<",
+              "value": 0.0
+            }
+          ],
+          "min_count": 4
+        },
+        "WARNING": {
+          "join": "at_least",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "slope",
+              "operator": ">",
+              "value": 0.1
+            },
+            {
+              "column": "S.C",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.05
+            },
+            {
+              "column": "P_suction",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.02
+            },
+            {
+              "column": "qc",
+              "function": "slope",
+              "operator": "<",
+              "value": -1.0
+            }
+          ],
+          "min_count": 3
+        }
+      }
+    },
+    "RF-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": ">",
+              "value": 40.0
+            },
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": "<",
+              "value": 3.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": ">",
+              "value": 25.0
+            },
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": "<",
+              "value": 3.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": ">",
+              "value": 15.0
+            },
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": "<",
+              "value": 3.0
+            }
+          ]
+        }
+      }
+    },
+    "RF-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 10,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": ">",
+              "value": 30.0
+            },
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": "<",
+              "value": 15.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": ">",
+              "value": 20.0
+            },
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": "<",
+              "value": 15.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": ">",
+              "value": 20.0
+            }
+          ]
+        }
+      }
+    },
+    "CP-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": "<=",
+              "value": 0.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "function": "mean",
+              "operator": "<",
+              "value": 5.0
+            }
+          ]
+        }
+      }
+    },
+    "CP-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_3a",
+              "function": "mean",
+              "operator": ">",
+              "value": 260.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_3a",
+              "function": "mean",
+              "operator": ">",
+              "value": 220.0
+            }
+          ]
+        }
+      }
+    },
+    "CP-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "P_disch",
+              "column2": "P_suction",
+              "function": "pressure_ratio",
+              "operator": "<",
+              "value": 1.5
+            }
+          ]
+        }
+      }
+    },
+    "CP-4": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "P_disch",
+              "column2": "P_suction",
+              "function": "pressure_ratio",
+              "operator": ">",
+              "value": 10.0
+            }
+          ]
+        }
+      }
+    },
+    "CP-5": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_3a",
+              "function": "slope",
+              "operator": ">",
+              "value": 0.2
+            }
+          ]
+        }
+      }
+    },
+    "CP-6": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "P_disch",
+              "column2": "P_suction",
+              "function": "pressure_ratio",
+              "operator": ">",
+              "value": 8.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "P_disch",
+              "column2": "P_suction",
+              "function": "pressure_ratio",
+              "operator": ">",
+              "value": 5.5
+            }
+          ]
+        }
+      }
+    },
+    "CD-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_sat.cond",
+              "column2": "T_waterout",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 15.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_sat.cond",
+              "column2": "T_waterout",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 8.0
+            }
+          ]
+        }
+      }
+    },
+    "CD-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_waterout",
+              "column2": "T_waterin",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 20.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_waterout",
+              "column2": "T_waterin",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 12.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_waterout",
+              "column2": "T_waterin",
+              "function": "diff_mean",
+              "operator": "<",
+              "value": 1.0
+            }
+          ]
+        }
+      }
+    },
+    "EV-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "or",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": ">",
+              "value": 40.0
+            },
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": "<=",
+              "value": 0.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "or",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": ">",
+              "value": 25.0
+            },
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": "<",
+              "value": 3.0
+            }
+          ]
+        }
+      }
+    },
+    "EV-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "column2": "S.H_rh coil",
+              "function": "abs_diff_mean",
+              "operator": ">",
+              "value": 15.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "column2": "S.H_rh coil",
+              "function": "abs_diff_mean",
+              "operator": ">",
+              "value": 8.0
+            }
+          ]
+        }
+      }
+    },
+    "EV-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_sat.comp.in",
+              "function": "mean",
+              "operator": "<",
+              "value": 32.0
+            },
+            {
+              "column": "P_suction",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.05
+            },
+            {
+              "column": "qc",
+              "function": "slope",
+              "operator": "<",
+              "value": -5.0
+            },
+            {
+              "column": "S.H_lh coil",
+              "function": "slope",
+              "operator": "<",
+              "value": -0.05
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_sat.comp.in",
+              "function": "mean",
+              "operator": "<",
+              "value": 32.0
+            }
+          ]
+        }
+      }
+    },
+    "TX-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": ">",
+              "value": 40.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": ">",
+              "value": 25.0
+            }
+          ]
+        }
+      }
+    },
+    "TX-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": "<=",
+              "value": 0.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "mean",
+              "operator": "<",
+              "value": 3.0
+            }
+          ]
+        }
+      }
+    },
+    "TX-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "std",
+              "operator": ">",
+              "value": 10.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "function": "std",
+              "operator": ">",
+              "value": 5.0
+            }
+          ]
+        }
+      }
+    },
+    "DI-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "column2": "S.H_rh coil",
+              "function": "abs_diff_mean",
+              "operator": ">",
+              "value": 8.0
+            },
+            {
+              "column": "S.C",
+              "column2": "S.C-txv.lh",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 4.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_lh coil",
+              "column2": "S.H_rh coil",
+              "function": "abs_diff_mean",
+              "operator": ">",
+              "value": 8.0
+            }
+          ]
+        }
+      }
+    },
+    "DI-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "column2": "S.C-txv.lh",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 8.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "column2": "S.C-txv.lh",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 3.0
+            }
+          ]
+        }
+      }
+    },
+    "DI-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_1b-lh",
+              "column2": "T_1a-lh",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 6.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "T_1b-lh",
+              "column2": "T_1a-lh",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 3.0
+            }
+          ]
+        }
+      }
+    },
+    "SL-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "column2": "S.H_lh coil",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 25.0
+            }
+          ]
+        },
+        "WATCH": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.H_total",
+              "column2": "S.H_lh coil",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 10.0
+            }
+          ]
+        }
+      }
+    },
+    "SI-1": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 100,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": "<",
+              "value": -5.0
+            }
+          ]
+        },
+        "WARNING": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "S.C",
+              "function": "mean",
+              "operator": "<",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    "SI-2": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "H_comp.in",
+              "column2": "H_txv.lh",
+              "function": "diff_mean",
+              "operator": "<",
+              "value": 0.0
+            }
+          ]
+        }
+      }
+    },
+    "SI-3": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "and",
+          "conditions": [
+            {
+              "column": "P_suction",
+              "function": "mean",
+              "operator": "<",
+              "value": -14.0
+            }
+          ]
+        }
+      }
+    },
+    "SI-4": {
+      "enabled": true,
+      "applies_to": [
+        "cassette",
+        "modular",
+        "non-modular"
+      ],
+      "window_rows": 20,
+      "expressions": {
+        "CRITICAL": {
+          "join": "or",
+          "conditions": [
+            {
+              "column": "T_3a",
+              "column2": "T_2b",
+              "function": "diff_mean",
+              "operator": "<",
+              "value": -2.0
+            },
+            {
+              "column": "T_4a",
+              "column2": "T_3b",
+              "function": "diff_mean",
+              "operator": ">",
+              "value": 2.0
+            },
+            {
+              "column": "T_waterout",
+              "column2": "T_waterin",
+              "function": "diff_mean",
+              "operator": "<",
+              "value": -2.0
+            }
+          ]
+        }
+      }
+    }
+  }
+}

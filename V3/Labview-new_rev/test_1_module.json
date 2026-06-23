@@ -1,0 +1,356 @@
+{
+  "components": {
+    "comp1": {
+      "type": "Compressor",
+      "position": [
+        540,
+        100
+      ],
+      "properties": {}
+    },
+    "cond1": {
+      "type": "Condenser",
+      "position": [
+        540,
+        180
+      ],
+      "properties": {}
+    },
+    "mod1_txv": {
+      "type": "TXV",
+      "position": [
+        540,
+        240
+      ],
+      "properties": {
+        "circuit_label": "None"
+      }
+    },
+    "mod1_dist": {
+      "type": "Distributor",
+      "position": [
+        480,
+        300
+      ],
+      "properties": {
+        "circuits": 6,
+        "snapped_mode": "Yes",
+        "width": 240,
+        "circuit_label": "None"
+      }
+    },
+    "mod1_evap": {
+      "type": "Evaporator",
+      "size": {
+        "width": 240,
+        "height": 80
+      },
+      "position": [
+        480,
+        465
+      ],
+      "properties": {
+        "circuits": 6,
+        "snapped_mode": "Yes",
+        "width": 240,
+        "circuit_label": "None"
+      }
+    },
+    "mod1_head": {
+      "type": "Header",
+      "size": {
+        "width": 240,
+        "height": 40
+      },
+      "position": [
+        480,
+        545
+      ],
+      "properties": {
+        "circuits": 6,
+        "snapped_mode": "Yes",
+        "width": 240,
+        "circuit_label": "None"
+      }
+    }
+  },
+  "pipes": {
+    "p_comp_cond": {
+      "start_component_id": "comp1",
+      "end_component_id": "cond1",
+      "start_port": "outlet",
+      "end_port": "inlet"
+    },
+    "p_cond_txv": {
+      "start_component_id": "cond1",
+      "end_component_id": "mod1_txv",
+      "start_port": "outlet",
+      "end_port": "inlet"
+    },
+    "p_mod1_txv_mod1_dist": {
+      "start_component_id": "mod1_txv",
+      "end_component_id": "mod1_dist",
+      "start_port": "outlet",
+      "end_port": "inlet"
+    },
+    "p_mod1_dist_mod1_evap_1": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_1",
+      "end_port": "inlet_circuit_1",
+      "route_locked": true,
+      "route": [
+        [
+          480.0,
+          315
+        ],
+        [
+          480.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_1": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_1",
+      "end_port": "in_1",
+      "route_locked": true,
+      "route": [
+        [
+          480.0,
+          545
+        ],
+        [
+          480.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_dist_mod1_evap_2": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_2",
+      "end_port": "inlet_circuit_2",
+      "route_locked": true,
+      "route": [
+        [
+          528.0,
+          315
+        ],
+        [
+          528.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_2": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_2",
+      "end_port": "in_2",
+      "route_locked": true,
+      "route": [
+        [
+          528.0,
+          545
+        ],
+        [
+          528.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_dist_mod1_evap_3": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_3",
+      "end_port": "inlet_circuit_3",
+      "route_locked": true,
+      "route": [
+        [
+          576.0,
+          315
+        ],
+        [
+          576.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_3": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_3",
+      "end_port": "in_3",
+      "route_locked": true,
+      "route": [
+        [
+          576.0,
+          545
+        ],
+        [
+          576.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_dist_mod1_evap_4": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_4",
+      "end_port": "inlet_circuit_4",
+      "route_locked": true,
+      "route": [
+        [
+          624.0,
+          315
+        ],
+        [
+          624.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_4": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_4",
+      "end_port": "in_4",
+      "route_locked": true,
+      "route": [
+        [
+          624.0,
+          545
+        ],
+        [
+          624.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_dist_mod1_evap_5": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_5",
+      "end_port": "inlet_circuit_5",
+      "route_locked": true,
+      "route": [
+        [
+          672.0,
+          315
+        ],
+        [
+          672.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_5": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_5",
+      "end_port": "in_5",
+      "route_locked": true,
+      "route": [
+        [
+          672.0,
+          545
+        ],
+        [
+          672.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_dist_mod1_evap_6": {
+      "start_component_id": "mod1_dist",
+      "end_component_id": "mod1_evap",
+      "start_port": "outlet_6",
+      "end_port": "inlet_circuit_6",
+      "route_locked": true,
+      "route": [
+        [
+          720.0,
+          315
+        ],
+        [
+          720.0,
+          465
+        ]
+      ]
+    },
+    "p_mod1_evap_mod1_head_6": {
+      "start_component_id": "mod1_evap",
+      "end_component_id": "mod1_head",
+      "start_port": "outlet_circuit_6",
+      "end_port": "in_6",
+      "route_locked": true,
+      "route": [
+        [
+          720.0,
+          545
+        ],
+        [
+          720.0,
+          545
+        ]
+      ]
+    },
+    "p_mod1_txv_mod1_head_sensor": {
+      "start_component_id": "mod1_txv",
+      "end_component_id": "mod1_head",
+      "start_port": "sensor",
+      "end_port": "sensor_attach",
+      "route_locked": true,
+      "route": [
+        [
+          540,
+          270
+        ],
+        [
+          460,
+          270
+        ],
+        [
+          460,
+          595
+        ],
+        [
+          600,
+          595
+        ]
+      ],
+      "pressure_side": "low"
+    },
+    "p_return": {
+      "start_component_id": "mod1_head",
+      "end_component_id": "comp1",
+      "start_port": "outlet",
+      "end_port": "inlet",
+      "route_locked": true,
+      "route": [
+        [
+          600,
+          575
+        ],
+        [
+          250,
+          575
+        ],
+        [
+          250,
+          60
+        ],
+        [
+          600,
+          60
+        ],
+        [
+          600,
+          100
+        ]
+      ]
+    }
+  }
+}

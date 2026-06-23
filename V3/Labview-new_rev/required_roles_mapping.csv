@@ -1,0 +1,24 @@
+﻿role_key,component_type,port_name,csv_column
+P_suc,Compressor,SP,Suction Presure 
+P_disch,Compressor,DP,Liquid Pressure 
+RPM,Compressor,RPM,Compressor RPM
+T_2b,Compressor,inlet,Suction line into Comp
+T_3a,Compressor,outlet,Discharge line from comp
+T_3b,Condenser,inlet,Ref Temp in HeatX
+T_4a,Condenser,outlet,Ref Temp out HeatX
+T_waterin,Condenser,water_inlet,
+T_waterout,Condenser,water_outlet,
+Cond.water.out,Condenser,water_out_temp,Water in HeatX
+Cond.water.in,Condenser,water_in_temp,Water out HeatX
+T_1a-lh,TXV,outlet,
+T_1b-lh,Evaporator,inlet_circuit_1,Left Coil Inlet 1
+T_2a-LH,Evaporator,outlet_circuit_1,Left Coil Outlet 1
+T_4b-lh,TXV,inlet,Left TXV Inlet
+T_1a-ctr,TXV,outlet,
+T_1b-ctr,Evaporator,inlet_circuit_1,
+T_2a-CTR,Evaporator,outlet_circuit_1,
+T_4b-ctr,TXV,inlet,CTR TXV Inlet
+T_1a-rh,TXV,outlet,
+T_1b-rh,Evaporator,inlet_circuit_1,
+T_2a-RH,Evaporator,outlet_circuit_1,
+T_4b-rh,TXV,inlet,Right TXV Inlet 

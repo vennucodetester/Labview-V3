@@ -1,0 +1,65 @@
+{
+ "ID5SL12": {
+  "file": "tmpl_ID5SL12.json",
+  "source": "ID5SL12.json",
+  "system_type": "shared",
+  "modules": 3,
+  "circuits_per_coil": 6,
+  "components": 30,
+  "pipes": 52
+ },
+ "ID5SL4": {
+  "file": "tmpl_ID5SL4.json",
+  "source": "ID5SL4.json",
+  "system_type": "shared",
+  "modules": 1,
+  "circuits_per_coil": 6,
+  "components": 13,
+  "pipes": 17
+ },
+ "ID5SL6": {
+  "file": "tmpl_ID5SL6.json",
+  "source": "ID5SL6.json",
+  "system_type": "shared",
+  "modules": 1,
+  "circuits_per_coil": 3,
+  "components": 17,
+  "pipes": 11
+ },
+ "RLN3MA": {
+  "file": "tmpl_RLN3MA.json",
+  "source": "RLN3MA.json",
+  "system_type": "cassette",
+  "modules": 2,
+  "circuits_per_coil": 2,
+  "components": 34,
+  "pipes": 46
+ },
+ "RMN2MA": {
+  "file": "tmpl_RMN2MA.json",
+  "source": "RMN2MA.json",
+  "system_type": "shared",
+  "modules": 1,
+  "circuits_per_coil": 3,
+  "components": 15,
+  "pipes": 17
+ },
+ "RMN3WE": {
+  "file": "tmpl_RMN3WE.json",
+  "source": "RMN3WE.json",
+  "system_type": "shared",
+  "modules": 1,
+  "circuits_per_coil": 3,
+  "components": 17,
+  "pipes": 11
+ },
+ "RMN5MA": {
+  "file": "tmpl_RMN5MA.json",
+  "source": "RMN5MA.json",
+  "system_type": "cassette",
+  "modules": 2,
+  "circuits_per_coil": 2,
+  "components": 30,
+  "pipes": 46
+ }
+}

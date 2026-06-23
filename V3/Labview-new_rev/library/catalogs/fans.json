@@ -1,0 +1,12 @@
+[
+  {
+    "id": "fan_2100098a",
+    "model": "240CFM",
+    "company_pn": "654123",
+    "diameter_in": 8.0,
+    "cfm": 240.0,
+    "speed_rpm": 5000.0,
+    "created_by": "silam",
+    "created_at": "2026-06-11T21:22:52"
+  }
+]

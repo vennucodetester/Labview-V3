@@ -1,0 +1,476 @@
+{
+ "components": {
+  "compressor_a91fd4": {
+   "type": "Compressor",
+   "position": [
+    239.62439158205768,
+    -515.5423260802382
+   ],
+   "properties": {},
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 270.0
+  },
+  "condenser_fba9eb": {
+   "type": "Condenser",
+   "position": [
+    -439.0,
+    -673.7932499999998
+   ],
+   "properties": {
+    "condenser_type": "Water Cooled"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 180.0
+  },
+  "txv_18cc9b": {
+   "type": "TXV",
+   "position": [
+    -1193.1535562500005,
+    -557.5947427986561
+   ],
+   "properties": {
+    "capacity": 100,
+    "superheat_setting": 10,
+    "circuit_label": "Left"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "distributor_954fc2": {
+   "type": "Distributor",
+   "position": [
+    -637.4002570392655,
+    -375.948204615746
+   ],
+   "properties": {
+    "circuit_count": 6,
+    "port_spacing": 40,
+    "circuit_label": "Left"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "evaporator_3408df": {
+   "type": "Evaporator",
+   "position": [
+    -536.0619582493536,
+    -500.6317142753895
+   ],
+   "properties": {
+    "circuits": 6,
+    "circuit_label": "Left",
+    "port_spacing": 40
+   },
+   "size": {
+    "width": 100,
+    "height": 250
+   },
+   "rotation": 0
+  },
+  "junction_724126": {
+   "type": "Junction",
+   "position": [
+    -345.72105530663305,
+    -375.11153865723816
+   ],
+   "properties": {
+    "inlet_count": 6,
+    "outlet_count": 1,
+    "port_spacing": 40,
+    "circuit_label": "Left"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "sensorbulb_c3a80d": {
+   "type": "SensorBulb",
+   "position": [
+    -1291.2736260588094,
+    -621.1469751712824
+   ],
+   "properties": {
+    "label": "",
+    "circuit_label": "Left"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "airsensorarray_42184f": {
+   "type": "AirSensorArray",
+   "position": [
+    -1206.660606158106,
+    -906.4789401068331
+   ],
+   "properties": {
+    "curtain_type": "Secondary",
+    "module_position": "Left",
+    "sensor_count": 5,
+    "block_width": 1500,
+    "block_height": 25
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "airsensorarray_8dddb9": {
+   "type": "AirSensorArray",
+   "position": [
+    -1207.6192317339937,
+    -996.6670638524706
+   ],
+   "properties": {
+    "curtain_type": "Primary",
+    "module_position": "Left",
+    "sensor_count": 5,
+    "block_width": 1500,
+    "block_height": 25
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "airsensorarray_67c33e": {
+   "type": "AirSensorArray",
+   "position": [
+    -1204.5082110829194,
+    -820.686233060661
+   ],
+   "properties": {
+    "curtain_type": "Return",
+    "module_position": "Left",
+    "sensor_count": 5,
+    "block_width": 1500,
+    "block_height": 25
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "shelvinggrid_dac239": {
+   "type": "ShelvingGrid",
+   "position": [
+    -621.6435700626914,
+    -127.05257759968589
+   ],
+   "properties": {
+    "shelving_type": "Non-Modular",
+    "module_count": 2,
+    "door_count": 1,
+    "shelf_rows": 5,
+    "shelf_width": 300,
+    "shelf_height": 60
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 0
+  },
+  "fan_f924ec": {
+   "type": "Fan",
+   "position": [
+    -484.9231646874996,
+    -188.34299593750006
+   ],
+   "properties": {
+    "rpm": 1200,
+    "air_flow_type": "Air Inlet",
+    "sensor_count": 2,
+    "circuit_label": "LH"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 270.0
+  },
+  "fan_097a50": {
+   "type": "Fan",
+   "position": [
+    -487.00849846498534,
+    -553.5006313950992
+   ],
+   "properties": {
+    "rpm": 1200,
+    "air_flow_type": "Air Outlet",
+    "sensor_count": 2,
+    "circuit_label": "LH"
+   },
+   "size": {
+    "width": 100,
+    "height": 60
+   },
+   "rotation": 270.0
+  }
+ },
+ "pipes": {
+  "pipe_7c4031": {
+   "start_component_id": "condenser_fba9eb",
+   "start_port": "inlet",
+   "end_component_id": "compressor_a91fd4",
+   "end_port": "outlet",
+   "fluid_state": "gas",
+   "waypoints": [
+    [
+     269.42580717519445,
+     -643.7020516254646
+    ]
+   ],
+   "pressure_side": "high",
+   "circuit_label": "None"
+  },
+  "pipe_6dec6d": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_1",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_1",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_4b1328": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_2",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_2",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_f71a71": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_3",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_3",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_22e4f1": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_4",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_4",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_45c486": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_5",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_5",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_4ae188": {
+   "start_component_id": "distributor_954fc2",
+   "start_port": "outlet_6",
+   "end_component_id": "evaporator_3408df",
+   "end_port": "inlet_circuit_6",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_942539": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_1",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_1",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_e983f1": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_2",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_2",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_c7cf9e": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_3",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_3",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_b1ca12": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_4",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_4",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_22a7cc": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_5",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_5",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_cbee4d": {
+   "start_component_id": "evaporator_3408df",
+   "start_port": "outlet_circuit_6",
+   "end_component_id": "junction_724126",
+   "end_port": "inlet_6",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_eb32bb": {
+   "start_component_id": "txv_18cc9b",
+   "start_port": "bulb",
+   "end_component_id": "sensorbulb_c3a80d",
+   "end_port": "measurement",
+   "fluid_state": "any",
+   "pressure_side": "low",
+   "waypoints": [],
+   "circuit_label": "Left"
+  },
+  "pipe_43c349": {
+   "start_component_id": "junction_724126",
+   "start_port": "outlet_1",
+   "end_component_id": "compressor_a91fd4",
+   "end_port": "inlet",
+   "fluid_state": "gas",
+   "pressure_side": "low",
+   "circuit_label": "Left",
+   "waypoints": [
+    [
+     -263.1113750000007,
+     -375.6561249999999
+    ]
+   ]
+  },
+  "pipe_4604ff": {
+   "start_component_id": "txv_18cc9b",
+   "start_port": "inlet",
+   "end_component_id": "condenser_fba9eb",
+   "end_port": "outlet",
+   "fluid_state": "liquid",
+   "pressure_side": "high",
+   "circuit_label": "Left",
+   "waypoints": [
+    [
+     -1192.366,
+     -704.1651249999999
+    ]
+   ]
+  },
+  "pipe_d2c942": {
+   "start_component_id": "txv_18cc9b",
+   "start_port": "outlet",
+   "end_component_id": "distributor_954fc2",
+   "end_port": "inlet",
+   "fluid_state": "two-phase",
+   "pressure_side": "low",
+   "circuit_label": "Left",
+   "waypoints": [
+    [
+     -1193.193586864059,
+     -376.3878678700584
+    ]
+   ]
+  }
+ },
+ "sensor_boxes": {
+  "sensorbox_329beb": {
+   "position": [
+    -932.400364130435,
+    -147.02841847826085
+   ],
+   "title": "Misc.",
+   "sensors": [
+    {
+     "id": "sensor_30936ef7",
+     "label": "Ambient Dry Bulb Ta"
+    },
+    {
+     "id": "sensor_9b587dcc",
+     "label": "Ambient Dry Bulb Tb"
+    },
+    {
+     "id": "sensor_a9c72dd2",
+     "label": "Ambient Wet Bulb"
+    },
+    {
+     "id": "sensor_c35483b9",
+     "label": "Evap"
+    }
+   ]
+  },
+  "sensorbox_79327f": {
+   "position": [
+    -284.1869999999999,
+    -141.84412499999974
+   ],
+   "title": "Amperage/Wattage",
+   "sensors": [
+    {
+     "id": "sensor_d641d2aa",
+     "label": "Case Amps"
+    },
+    {
+     "id": "sensor_c0e84308",
+     "label": "Case Watts"
+    },
+    {
+     "id": "sensor_ddbec384",
+     "label": "Total Case Watts"
+    }
+   ]
+  }
+ },
+ "properties": {
+  "refrigerant": "R410A"
+ },
+ "sensor_roles": {},
+ "custom_sensors": {},
+ "role_dot_labels": {}
+}

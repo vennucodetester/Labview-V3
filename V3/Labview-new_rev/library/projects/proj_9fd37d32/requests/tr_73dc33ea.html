@@ -1,0 +1,48 @@
+<!DOCTYPE html><html><head><meta charset="utf-8">
+<style>
+ body { font-family: Arial, sans-serif; font-size: 11pt; margin: 32px; }
+ h1 { font-size: 16pt; border-bottom: 3px solid #007bff; padding-bottom: 6px; }
+ h2 { font-size: 12pt; color: #007bff; margin-top: 22px; }
+ table { border-collapse: collapse; width: 100%; margin-top: 6px; }
+ td, th { border: 1px solid #ccc; padding: 5px 8px; text-align: left; }
+ th { background: #f0f4ff; }
+ .meta td { border: none; padding: 2px 12px 2px 0; }
+</style></head><body>
+<h1>Test Request TR-2026-001 — Rev A</h1>
+<table class="meta">
+ <tr><td><b>Project:</b> HIGHER CHARGE ID6SU12WE PERF. TEST</td>
+     <td><b>Test type:</b> PERF</td>
+     <td><b>Engineer:</b> silam</td>
+     <td><b>Date:</b> 2026-06-11T21:20:15</td></tr>
+</table>
+<h2>Title & Objective</h2>
+<p><b>PERF TEST</b></p>
+<p>DOE 24 HR DOOR OPENINGS
+WOOD LOAD</p>
+<h2>Case</h2>
+<table>
+ <tr><th>Case model</th><th>Family</th><th>System</th><th>Modules</th>
+     <th>Circuits/coil</th><th>Condenser</th><th>Doored</th></tr>
+ <tr><td>ID6SU12WE</td><td>Modular</td>
+     <td>shared</td><td>3</td>
+     <td>6</td>
+     <td>Water</td>
+     <td>No</td></tr>
+</table>
+<h2>Parts</h2>
+<table><tr><th>Component</th><th>Model</th><th>Specs (frozen at time of use)</th></tr>
+<tr><td>Compressor</td><td><b>SCROLL VARIABLE SPEED</b></td><td>rated_speed_rpm: 5000.0, rated_mdot_lbhr: 20.0, rated_evap_temp_f: -5.0, rated_return_gas_temp_f: 20.0, notes: JUST A SAMMPLE</td></tr><tr><td>Condenser</td><td><b>WATER COOLED</b></td><td>company_pn: 3204562, cooling_type: Water, design_gpm: 6.0, notes: SAMPLE</td></tr><tr><td>Txv</td><td><b>A10</b></td><td>company_pn: 3105462, nominal_tons: 0.5, rated_refrigerant: R290</td></tr><tr><td>Coil</td><td><b>EVAP</b></td><td>company_pn: 3562516, circuits: 6.0, fpi: 4.0, rows: 5.0, notes: SAMPLE</td></tr><tr><td>Distributor</td><td><b>6 CIRCUIT</b></td><td>company_pn: 231564, outlets: 6.0, nozzle_size: 1/4, notes: SAMPLE</td></tr><tr><td>Fan</td><td><b>240CFM</b></td><td>company_pn: 654123, diameter_in: 8.0, cfm: 240.0, speed_rpm: 5000.0</td></tr></table>
+<h2>Settings</h2>
+<table class="meta">
+ <tr><td><b>Refrigerant:</b> R290</td>
+     <td><b>Charge (oz):</b> 400.0</td>
+     <td><b>Water GPM:</b> 6.0</td>
+     <td><b>Fan CFM:</b> 240.0</td></tr>
+ <tr><td colspan="2"><b>Defrost:</b> OFF TIME/ 8HR</td>
+     <td colspan="2"><b>Setpoints:</b> 26</td></tr>
+</table>
+<h2>Targets (pass/fail criteria)</h2>
+<table><tr><th>Target</th><th>Acceptance band</th><th>Unit</th></tr><tr><td>Product temp</td><td>20.0 – 38.0</td><td>°F</td></tr><tr><td>Coil superheat</td><td>6.0 – 9.0</td><td>°F</td></tr><tr><td>Subcooling</td><td>5.0 – 15.0</td><td>°F</td></tr><tr><td>Capacity</td><td>—</td><td>BTU/hr</td></tr><tr><td>DOE energy</td><td>—</td><td>kWh/day</td></tr></table>
+<h2>Revision history</h2>
+<table><tr><th>Rev</th><th>When</th><th>By</th><th>Change</th></tr><tr><td>Rev A</td><td>2026-06-11T21:20:15</td><td>silam</td><td>Initial release</td></tr></table>
+</body></html>

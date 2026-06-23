@@ -1,0 +1,13 @@
+[
+  {
+    "id": "coil_5c0d6782",
+    "model": "EVAP",
+    "company_pn": "3562516",
+    "circuits": 6.0,
+    "fpi": 4.0,
+    "rows": 5.0,
+    "notes": "SAMPLE",
+    "created_by": "silam",
+    "created_at": "2026-06-11T21:22:16"
+  }
+]
