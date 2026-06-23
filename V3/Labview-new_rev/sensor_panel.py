@@ -3,7 +3,7 @@ from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QGroupBox, QFrame, QTreeWidgetItemIterator,
                              QAbstractItemView, QMenu, QInputDialog, QMessageBox,
                              QToolButton, QComboBox)
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QAction
 
 class SensorPanel(QWidget):
@@ -11,6 +11,8 @@ class SensorPanel(QWidget):
     Manages the sensor list UI with a full-featured right-click context menu
     for grouping, renaming, and moving sensors.
     """
+    sensor_locate_requested = pyqtSignal(str)
+
     def __init__(self, data_manager):
         super().__init__()
         self.data_manager = data_manager
@@ -237,6 +239,7 @@ class SensorPanel(QWidget):
                              modifiers == Qt.KeyboardModifier.ShiftModifier)
             
             self.data_manager.toggle_sensor_selection(sensor_name, multi_select=is_multi_select)
+            self.sensor_locate_requested.emit(sensor_name)
     
     def on_select_all_graph_changed(self, state):
         """Handles the select all graph checkbox toggle."""
@@ -443,10 +446,13 @@ class SensorPanel(QWidget):
         )
         sensor_item.setToolTip(1, "Lab/CSV label currently mapped to this diagram point")
 
+        is_visible_role = row.get('is_visible_diagram_role', True)
         if sensor_key in self.data_manager.selected_sensors or label in self.data_manager.selected_sensors:
             color = QColor("#ffc107")
-        elif mapped_label:
+        elif mapped_label and is_visible_role:
             color = QColor("#c8e6c9")
+        elif mapped_label:
+            color = QColor("#bbdefb")
         else:
             color = QColor("#fff8e1")
 
@@ -484,11 +490,15 @@ class SensorPanel(QWidget):
         sensor_item = QTreeWidgetItem(parent_item)
         sensor_item.setText(0, sensor_name)
         
-        # Priority: Selected > Mapped (new diagram roles) > Unmapped (apply to all columns)
+        # Priority: Selected > visible diagram mapping > off-diagram mapping > unmapped.
         if sensor_name in self.data_manager.selected_sensors:
             color = QColor("#ffc107")  # Yellow for selected
-        elif getattr(self.data_manager, 'is_sensor_mapped_in_roles', None) and self.data_manager.is_sensor_mapped_in_roles(sensor_name):
-            color = QColor("#c8e6c9")  # Light green for mapped (new diagram roles)
+        elif (getattr(self.data_manager, 'is_sensor_mapped_to_visible_role', None)
+              and self.data_manager.is_sensor_mapped_to_visible_role(sensor_name)):
+            color = QColor("#c8e6c9")  # Light green for mapped to a visible diagram dot
+        elif (getattr(self.data_manager, 'is_sensor_mapped_in_roles', None)
+              and self.data_manager.is_sensor_mapped_in_roles(sensor_name)):
+            color = QColor("#bbdefb")  # Light blue for mapped off the process diagram
         else:
             color = QColor("#ffccbc")  # Light orange for unmapped
         
@@ -789,8 +799,12 @@ class SensorPanel(QWidget):
                 # Re-evaluate color for this sensor
                 if item_sensor_name in self.data_manager.selected_sensors or visible_label in self.data_manager.selected_sensors:
                     color = QColor("#ffc107")  # Yellow
-                elif getattr(self.data_manager, 'is_sensor_mapped_in_roles', None) and self.data_manager.is_sensor_mapped_in_roles(item_sensor_name):
+                elif (getattr(self.data_manager, 'is_sensor_mapped_to_visible_role', None)
+                      and self.data_manager.is_sensor_mapped_to_visible_role(item_sensor_name)):
                     color = QColor("#c8e6c9")  # Green
+                elif (getattr(self.data_manager, 'is_sensor_mapped_in_roles', None)
+                      and self.data_manager.is_sensor_mapped_in_roles(item_sensor_name)):
+                    color = QColor("#bbdefb")  # Mapped off diagram
                 else:
                     color = QColor("#ffccbc")  # Orange/Unmapped
                 

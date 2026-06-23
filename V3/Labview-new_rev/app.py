@@ -153,6 +153,15 @@ class MainWindow(QMainWindow):
         
         # Connect diagram widget sensor port clicks to sensor panel highlighting
         self.diagram_widget.sensor_port_clicked.connect(self.sensor_panel.highlight_and_scroll_to_sensor)
+        self.sensor_panel.sensor_locate_requested.connect(self.show_sensor_on_diagram)
+
+    def show_sensor_on_diagram(self, sensor_name: str):
+        """Switch to the Diagram tab and bring the selected sensor dot into view."""
+        if not sensor_name:
+            return
+        self.tabs.setCurrentWidget(self.diagram_widget)
+        if hasattr(self.diagram_widget, 'locate_sensor'):
+            self.diagram_widget.locate_sensor(sensor_name)
 
     def open_csv_file_dialog(self):
         file_name, _ = QFileDialog.getOpenFileName(

@@ -42,6 +42,16 @@ def _migrate_sensor_role_keys(diagram_model: dict) -> dict:
     return diagram_model
 
 
+def _component_bounds(component: dict) -> tuple[float, float, float, float]:
+    pos = component.get('position') or [0, 0]
+    size = component.get('size') or {}
+    x = float(pos[0] or 0)
+    y = float(pos[1] or 0)
+    w = float(size.get('width') or 100)
+    h = float(size.get('height') or 60)
+    return x, y, w, h
+
+
 class DataManager(QObject):
     """
     Centralized class to manage all application data, including sensor groups.
@@ -701,6 +711,172 @@ class DataManager(QObject):
             return [row['default_label'] for row in expected]
         return []
 
+    def ensure_standard_process_callouts(self) -> int:
+        """Backfill standard calculated/process dots on older saved diagrams.
+
+        Generated diagrams already contain these, but hand-saved templates such
+        as ID5SL12 may not.  Keeping the backfill here makes old templates work
+        without forcing the user to redraw the diagram.
+        """
+        model = self.diagram_model or {}
+        comps = model.get('components') or {}
+        if not comps:
+            return 0
+
+        custom = model.setdefault('custom_sensors', {})
+        added = 0
+
+        def add_dot(key, x, y, label, sensor_type='calculation', **extra):
+            nonlocal added
+            if key in custom:
+                if (key.startswith('calc.') or key in {
+                    'P_suc', 'P_disc', 'm_dot_meas', 'T_flowmeter.in', 'T_liq.main'
+                }):
+                    custom[key].update({
+                        'type': sensor_type,
+                        'position': [float(x), float(y)],
+                        'label': label,
+                        **extra,
+                    })
+                return
+            custom[key] = {
+                'type': sensor_type,
+                'position': [float(x), float(y)],
+                'label': label,
+                **extra,
+            }
+            added += 1
+
+        def circuit_tag(label):
+            return {'Left': 'lh', 'Center': 'ctr', 'Right': 'rh'}.get(
+                str(label or ''), str(label or '').strip().lower())
+
+        by_type = {}
+        for comp in comps.values():
+            by_type.setdefault(comp.get('type'), []).append(comp)
+
+        evaporators = []
+        for comp in by_type.get('Evaporator', []):
+            label = (comp.get('properties') or {}).get('circuit_label')
+            tag = circuit_tag(label)
+            if not tag:
+                continue
+            x, y, w, h = _component_bounds(comp)
+            evaporators.append((tag, str(label), x, y, w, h))
+            add_dot(
+                f'calc.SH.{tag}', x + w / 2, y + h + 24,
+                f'{label} Coil Superheat', 'calculation',
+                calc_key=f'S.H_{tag} coil', display_side='below')
+
+        for comp in by_type.get('TXV', []):
+            label = (comp.get('properties') or {}).get('circuit_label')
+            tag = circuit_tag(label)
+            if not tag:
+                continue
+            x, y, w, _h = _component_bounds(comp)
+            add_dot(
+                f'calc.SC_txv.{tag}', x + w / 2, y - 10,
+                f'{label} TXV Subcooling', 'calculation',
+                calc_key=f'S.C-txv.{tag}', display_side='above')
+
+        compressors = by_type.get('Compressor', [])
+        if compressors:
+            x, y, w, h = _component_bounds(compressors[0])
+            add_dot(
+                'calc.SH_total', x + w / 2 - 26, y - 10,
+                'Compressor Total Superheat', 'calculation',
+                calc_key='S.H_total', display_side='above')
+            add_dot(
+                'P_suc', x + w / 2 + 26, y - 10,
+                'Suction Pressure', 'pressure',
+                display_side='above')
+            add_dot(
+                'P_disc', x + w / 2 + 26, y + h + 14,
+                'Discharge Pressure', 'pressure',
+                display_side='right')
+            roles = model.setdefault('sensor_roles', {})
+            for old_key, new_key in list((('.SP', 'P_suc'), ('.DP', 'P_disc'))):
+                for role_key, sensor_name in list(roles.items()):
+                    if role_key.endswith(old_key) and new_key not in roles:
+                        roles[new_key] = sensor_name
+                        roles.pop(role_key, None)
+
+        condensers = by_type.get('Condenser', [])
+        if condensers:
+            x, y, w, h = _component_bounds(condensers[0])
+            add_dot(
+                'calc.SC_cond', x + w / 2, y + h + 8,
+                'Condenser Outlet Subcooling', 'calculation',
+                calc_key='S.C', display_side='below')
+
+            add_dot(
+                'm_dot_meas', x + w / 2 + 36, y + h + 22,
+                'Flowmeter (Mass Flow)', 'flow',
+                display_side='right')
+            add_dot(
+                'T_flowmeter.in', x + w / 2 + 72, y + h + 22,
+                'Temp into Flowmeter', 'temperature',
+                display_side='right')
+
+        distributors = by_type.get('Distributor', [])
+        if distributors:
+            min_x = min(_component_bounds(c)[0] for c in distributors)
+            avg_y = sum(_component_bounds(c)[1] + _component_bounds(c)[3] / 2
+                        for c in distributors) / len(distributors)
+            add_dot(
+                'T_liq.main', min_x - 12, avg_y,
+                'Main Liquid Line Temp', 'temperature',
+                display_side='above')
+
+        try:
+            from sensor_canonical import (
+                AMBIENT_WALLS_SLOTS,
+                electrical_system_slots,
+                _canonical_from_box_label,
+            )
+
+            boxes = model.setdefault('sensor_boxes', {})
+            existing_ids = set(custom.keys())
+            for box in boxes.values():
+                for sensor in box.get('sensors', []) or []:
+                    sid = sensor.get('id')
+                    if sid:
+                        existing_ids.add(sid)
+                    resolved = _canonical_from_box_label(sensor.get('label') or '')
+                    if resolved and resolved[0]:
+                        existing_ids.add(resolved[0])
+
+            def add_box_slots(box_id, title, position, slots):
+                nonlocal added
+                box = boxes.setdefault(box_id, {
+                    'position': position,
+                    'title': title,
+                    'sensors': [],
+                })
+                box.setdefault('sensors', [])
+                for canonical, label in slots:
+                    if canonical in existing_ids:
+                        continue
+                    box['sensors'].append({'id': canonical, 'label': label})
+                    existing_ids.add(canonical)
+                    added += 1
+
+            all_x = [_component_bounds(c)[0] for c in comps.values()]
+            all_y = [_component_bounds(c)[1] + _component_bounds(c)[3] for c in comps.values()]
+            anchor_x = (min(all_x) if all_x else 0) - 20
+            anchor_y = (max(all_y) if all_y else 100) + 70
+            n_compressors = len(by_type.get('Compressor', []) or [])
+            add_box_slots(
+                'box_ambient_walls', 'Ambient & Walls',
+                [anchor_x, anchor_y], AMBIENT_WALLS_SLOTS)
+            add_box_slots(
+                'box_electrical_system', 'Case Electrical & System',
+                [anchor_x + 390, anchor_y], electrical_system_slots(n_compressors or 1))
+        except Exception as exc:
+            print(f"[PROCESS_CALLOUTS] Sensor box backfill failed: {exc}")
+
+        return added
+
     def get_expected_sensor_rows(self, include_disabled: bool = False) -> list:
         """Return the diagram's expected sensor dots as table-ready rows.
 
@@ -716,6 +892,11 @@ class DataManager(QObject):
         if not (self.diagram_model.get('components') or self.diagram_model.get('custom_sensors')
                 or self.diagram_model.get('sensor_boxes')):
             return []
+
+        try:
+            self.ensure_standard_process_callouts()
+        except Exception as exc:
+            print(f"[PROCESS_CALLOUTS] Backfill failed: {exc}")
 
         try:
             self.populate_sensor_points()
@@ -747,6 +928,7 @@ class DataManager(QObject):
                 "mapped_label": mapped_label,
                 "group": self._group_for_canonical(canonical),
                 "enabled": enabled,
+                "is_visible_diagram_role": self.is_visible_diagram_role(role_key),
             })
 
         rows.sort(key=lambda r: (r["group"], self._sensor_sort_key(r["canonical"], r["default_label"])))
@@ -1522,6 +1704,13 @@ class DataManager(QObject):
 
         Returns count of newly mapped columns.
         """
+        try:
+            added = self.ensure_standard_process_callouts()
+            if added:
+                print(f"[PROCESS_CALLOUTS] Added {added} missing standard process dot(s)")
+        except Exception as exc:
+            print(f"[PROCESS_CALLOUTS] Backfill failed: {exc}")
+
         from sensor_canonical import (resolve_canonical_from_role_key,
                                       normalize_for_match,
                                       _canonical_from_box_label)
@@ -1658,30 +1847,63 @@ class DataManager(QObject):
                 'w': float(size.get('width') or 0),
                 'h': float(size.get('height') or 0),
             })
-        if not shelf_items:
-            return None
+        grid_fallback = None
+        if shelf_items:
+            rows = sorted({s['row'] for s in shelf_items})
+            cols = sorted({s['col'] for s in shelf_items})
+            if not rows or not cols:
+                return None
+            max_row = rows[-1]
+        else:
+            grid = next((c for c in comps.values() if c.get('type') == 'ShelvingGrid'), None)
+            if not grid:
+                return None
+            props = grid.get('properties') or {}
+            row_count = int(props.get('shelf_rows', 5) or 5)
+            if props.get('shelving_type', 'Modular') == 'Modular':
+                col_count = int(props.get('module_count', 3) or 3) + 1
+            else:
+                col_count = int(props.get('door_count', 3) or 3) + 1
+            gx, gy, _gw, _gh = _component_bounds(grid)
+            shelf_w = float(props.get('shelf_width') or 300)
+            shelf_h = float(props.get('shelf_height') or 60)
+            grid_fallback = {
+                'x': gx,
+                'y': gy,
+                'w': max(shelf_w, shelf_w * max(1, col_count - 1)),
+                'row_h': shelf_h,
+                'row_count': row_count,
+                'col_count': col_count,
+            }
+            rows = list(range(row_count))
+            cols = list(range(col_count))
+            max_row = row_count - 1
 
-        rows = sorted({s['row'] for s in shelf_items})
-        cols = sorted({s['col'] for s in shelf_items})
-        if not rows or not cols:
-            return None
-
-        row_map = {'top': 0, 'btm': rows[-1]}
-        for idx in range(1, rows[-1]):
+        row_map = {'top': 0, 'btm': max_row}
+        for idx in range(1, max_row):
             row_map[f'r{idx + 1}'] = idx
         if row_id not in row_map:
             return None
         row_idx = row_map[row_id]
 
-        row_shelves = [s for s in shelf_items if s['row'] == row_idx]
-        if not row_shelves:
-            return None
-        left_edge = min(s['x'] for s in row_shelves)
-        right_edge = max(s['x'] + s['w'] for s in row_shelves)
-        combined_w = right_edge - left_edge
-        count = len(cols)
+        if grid_fallback:
+            left_edge = grid_fallback['x']
+            combined_w = grid_fallback['w']
+            count = max(1, grid_fallback['col_count'] - 1)
+        else:
+            row_shelves = [s for s in shelf_items if s['row'] == row_idx]
+            if not row_shelves:
+                return None
+            left_edge = min(s['x'] for s in row_shelves)
+            right_edge = max(s['x'] + s['w'] for s in row_shelves)
+            combined_w = right_edge - left_edge
+            count = len(cols)
+
         mode = ((self.diagram_model.get('_topology') or {}).get('mode') or '').lower()
-        shelf_width_in = 48 if mode == 'modular' else 30
+        if grid_fallback:
+            shelf_width_in = 48 if count >= 3 else 30
+        else:
+            shelf_width_in = 48 if mode == 'modular' else 30
         total_shelf_in = count * shelf_width_in
 
         col_norm = col_id.lower()
@@ -1708,8 +1930,13 @@ class DataManager(QObject):
 
         inches = max(0, min(total_shelf_in, inches))
         x = left_edge + combined_w * (inches / total_shelf_in if total_shelf_in else 0)
-        shelf = row_shelves[0]
-        y = shelf['y'] if face == 'r' else shelf['y'] + shelf['h']
+        if grid_fallback:
+            y = grid_fallback['y'] + row_idx * grid_fallback['row_h']
+            if face != 'r':
+                y += grid_fallback['row_h']
+        else:
+            shelf = row_shelves[0]
+            y = shelf['y'] if face == 'r' else shelf['y'] + shelf['h']
 
         custom[canonical] = {
             'type': 'temperature',
@@ -1735,7 +1962,8 @@ class DataManager(QObject):
         normalized = ''.join(ch for ch in low if ch.isalnum())
         derived = {
             'sh', 'she',
-            'evap', 'avgprodtemp', 'avgprodsimtemp',
+            'evap', 'btu', 'totalflow',
+            'avgprodtemp', 'avgproducttemp', 'avgprodsimtemp',
             'averageprodtemp', 'averageprodsimtemp',
         }
         return normalized in derived
@@ -2233,6 +2461,30 @@ class DataManager(QObject):
         roles = self.diagram_model.get('sensor_roles', {})
         return roles.get(role_key)
 
+    def is_visible_diagram_role(self, role_key: str) -> bool:
+        """True when role_key has a dot on the process diagram itself."""
+        if not role_key:
+            return False
+        if str(role_key).lower().startswith('sensorbox.'):
+            return False
+        return True
+
+    def sensor_mapping_role_kinds(self, sensor_name: str) -> set:
+        """Return {'diagram', 'off_diagram'} kinds for a mapped CSV sensor."""
+        kinds = set()
+        try:
+            roles = self.diagram_model.get('sensor_roles', {}) or {}
+            for role_key, mapped in roles.items():
+                if mapped != sensor_name:
+                    continue
+                if self.is_visible_diagram_role(role_key):
+                    kinds.add('diagram')
+                else:
+                    kinds.add('off_diagram')
+        except Exception:
+            pass
+        return kinds
+
     def is_sensor_mapped_in_roles(self, sensor_name):
         """Return True if sensor_name appears as a value in diagram_model.sensor_roles."""
         try:
@@ -2240,6 +2492,10 @@ class DataManager(QObject):
             return any(mapped == sensor_name for mapped in roles.values())
         except Exception:
             return False
+
+    def is_sensor_mapped_to_visible_role(self, sensor_name):
+        """Return True only when sensor_name is mapped to a visible diagram dot."""
+        return 'diagram' in self.sensor_mapping_role_kinds(sensor_name)
     
     def get_custom_sensor_roles_for_sensor(self, sensor_name):
         """Return list of custom sensor role keys (sensor IDs) that are mapped to this sensor."""

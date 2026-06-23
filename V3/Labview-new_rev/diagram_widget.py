@@ -491,6 +491,7 @@ class DiagramWidget(QWidget):
         self.pipe_items = {}
         self.sensor_boxes = {}  # Track sensor boxes
         self.overlay_items = []  # Mapping mode overlay items
+        self.dot_items = {}  # role_key -> visible sensor dot item
         self._processed_means = None  # column means from last Calculations run (state overlay)
         self._processed_df = None
         
@@ -973,6 +974,53 @@ class DiagramWidget(QWidget):
         """Handle lightweight sensor mapping updates."""
         # Use the optimized update method
         self.update_sensor_dots()
+
+    def locate_sensor(self, sensor_name: str) -> bool:
+        """Center the view on the visible diagram dot mapped to sensor_name."""
+        if not sensor_name:
+            return False
+
+        target = None
+        roles = self.data_manager.diagram_model.get('sensor_roles', {}) or {}
+        for role_key, mapped in roles.items():
+            if mapped != sensor_name:
+                continue
+            target = self.dot_items.get(role_key)
+            if target is not None and target.scene() is self.scene:
+                break
+            try:
+                from sensor_canonical import resolve_canonical_from_role_key
+                resolved = resolve_canonical_from_role_key(self.data_manager.diagram_model, role_key)
+                canonical = resolved[0] if resolved else None
+                target = self.dot_items.get(canonical)
+                if target is not None and target.scene() is self.scene:
+                    break
+            except Exception:
+                pass
+            target = None
+
+        if target is None:
+            for box_item in self.sensor_boxes.values():
+                for sensor_info in box_item.sensors.values():
+                    role_key = sensor_info.get('role_key')
+                    if roles.get(role_key) == sensor_name:
+                        target = sensor_info.get('dot')
+                        break
+                if target is not None:
+                    break
+
+        if target is None:
+            print(f"[LOCATE SENSOR] No visible diagram dot mapped to {sensor_name}")
+            return False
+
+        self.view.centerOn(target)
+        self.view.ensureVisible(target.sceneBoundingRect().adjusted(-120, -120, 120, 120), 80, 80)
+        if hasattr(target, 'setBrush'):
+            target.setBrush(QBrush(QColor('#00D4FF')))
+            target.setPen(QPen(QColor(Qt.GlobalColor.black), 3))
+            target.setScale(2.6)
+        print(f"[LOCATE SENSOR] Centered diagram on {sensor_name}")
+        return True
     
     def build_scene_from_model(self):
         """Rebuild the entire scene from the diagram model."""
@@ -981,6 +1029,7 @@ class DiagramWidget(QWidget):
         self.pipe_items.clear()
         self.sensor_boxes.clear()
         self.overlay_items.clear()
+        self.dot_items.clear()
         self._role_label_rects = []
         
         model = self.data_manager.diagram_model
@@ -1304,6 +1353,12 @@ class DiagramWidget(QWidget):
         In Mapping: show sensor number when mapped, else empty.
         In Analysis: show average value when mapped, else empty.
         """
+        if getattr(self.data_manager, 'ensure_standard_process_callouts', None):
+            try:
+                self.data_manager.ensure_standard_process_callouts()
+            except Exception as exc:
+                print(f"[PROCESS_CALLOUTS] Diagram backfill failed: {exc}")
+
         # Ensure every port has an entry in sensor_points (all ON by default).
         # Also tries to apply saved defaults for this layout type.
         self.data_manager.populate_sensor_points()
@@ -1498,6 +1553,12 @@ class DiagramWidget(QWidget):
             return f"SC TXV {parts[-1].upper()}" if parts else 'SC TXV'
         if canon.startswith('calc.SC_cond'):
             return f"SC {parts[-1].upper()}" if canon != 'calc.SC_cond' else 'SC cond'
+        if canon.startswith('P_suc'):
+            return 'P suc'
+        if canon.startswith('P_disc') or canon.startswith('P_dis'):
+            return 'P disc'
+        if canon.startswith('m_dot'):
+            return 'flow'
         if role_key.startswith('SplitterManifold.') and role_key.endswith('.inlet'):
             try:
                 comp_id = role_key.split('.')[1]
@@ -1568,7 +1629,7 @@ class DiagramWidget(QWidget):
         # Dot item - use square for custom sensors, circle for component ports
         # Selected: bright cyan, 2.8x scale (distinct from out-of-range red)
         SELECTED_COLOR = QColor('#00D4FF')  # Bright cyan - impossible to miss
-        DOT_RADIUS = 4
+        DOT_RADIUS = 6
         DOT_DIAMETER = DOT_RADIUS * 2
         SELECTED_SCALE = 2.2
 
@@ -1777,9 +1838,13 @@ class DiagramWidget(QWidget):
         # Add to scene and track
         self.scene.addItem(dot)
         self.overlay_items.append(dot)
+        self.dot_items[role_key] = dot
 
         if self.data_manager.diagram_model.get('_simple_mode'):
             visible_label = label_text
+            short_label = self._short_role_label(role_key)
+            if short_label in ('P suc', 'P disc'):
+                visible_label = f"{short_label} {label_text}".strip()
             if not visible_label:
                 return
             label = QGraphicsTextItem(visible_label)

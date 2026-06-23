@@ -53,9 +53,10 @@ class BaseComponentItem(QGraphicsRectItem):
         # Default: components placed directly on the diagram (not in a sensor box)
         self.sensor_box = None
         
-        # High contrast colors for dark theme support
-        self.setBrush(QBrush(QColor("#1E1E1E")))  # Dark fill
-        self.setPen(QPen(QColor("#4DA6FF"), 2))  # Blueish outline
+        # Refrigeration components should read as equipment outlines, not
+        # heavy filled blocks over the process lines.
+        self.setBrush(QBrush(QColor("#F7FAFC")))
+        self.setPen(QPen(QColor("#000000"), 2))
         
         # Create label
         circuit_label = component_data.get('properties', {}).get('circuit_label', 'None')
@@ -64,7 +65,7 @@ class BaseComponentItem(QGraphicsRectItem):
         else:
             label_text = f"[{component_data['type']}]"
         self.label = QGraphicsTextItem(label_text, self)
-        self.label.setDefaultTextColor(QColor("#FFFFFF"))  # White text
+        self.label.setDefaultTextColor(QColor("#111111"))
         # Center the label later or put it at top-left
         self.label.setPos(5, 5)
         
@@ -107,13 +108,15 @@ class BaseComponentItem(QGraphicsRectItem):
         if component_data.get('type') == 'LabeledBox':
             props = component_data.get('properties', {})
             lbl_text = props.get('label', component_data.get('type', ''))
+            self.setBrush(QBrush(QColor("#F7FAFC")))
+            self.setPen(QPen(QColor("#000000"), 2))
             if simple:
                 for port in self.ports.values():
                     port.hide()
             if simple and lbl_text:
                 w = size['width']; h = size['height']
                 self.label.setHtml(
-                    f"<div align='center' style='color:white;font-family:sans-serif;"
+                    f"<div align='center' style='color:#111111;font-family:sans-serif;"
                     f"font-size:10pt;'>{lbl_text.replace(chr(10), '<br>')}</div>")
                 self.label.setTextWidth(w)
                 self.label.setPos(0, (h - self.label.boundingRect().height()) / 2)

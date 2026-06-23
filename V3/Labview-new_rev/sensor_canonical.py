@@ -441,6 +441,8 @@ _BOX_LABEL_PATTERNS = [
     ('frameheaterwatts',    'W_frame',       'Frame Heater Watts'),
     ('totalframeheatwatts', 'W_frame.total', 'Total Frame Heater Watts'),
     ('runtime',             't_run',         'Run Time'),
+    ('tempintoflowmeter',   'T_flowmeter.in','Temp into Flowmeter'),
+    ('temperatureintoflowmeter','T_flowmeter.in','Temp into Flowmeter'),
     ('flowmeter',           'm_dot_meas',    'Flowmeter (Mass Flow)'),
     ('dischargepressure',   'P_disc',        'Discharge Pressure'),
     ('suctionpressure',     'P_suc',         'Suction Pressure'),

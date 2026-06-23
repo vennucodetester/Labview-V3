@@ -374,7 +374,7 @@
   "T_prod.btm.RE.f": [
     "PS BC RE Front"
   ],
-  "m_dot_meas": [
+  "T_flowmeter.in": [
     "Temp into Flowmeter"
   ],
   "V_case": [
@@ -424,5 +424,8 @@
   ],
   "calc.SC_txv.lh": [
     "Total Case Amps"
+  ],
+  "m_dot_meas": [
+    "Flowmeter"
   ]
 }

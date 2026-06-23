@@ -1086,21 +1086,33 @@ def build_bare_minimum_diagram(request: dict) -> dict:
         for mx, lb in zip(mod_xs, mod_lbs):
             tag = tag_map.get(lb, lb.lower() if lb else 'lh')
             add_sensor_dot(
-                f'calc.SH.{tag}', mx + EVAP_W / 2 + 26, Y_EVAP + EVAP_H + 18,
+                f'calc.SH.{tag}', mx, MERGE_Y - 8,
                 f'{lb} Coil Superheat', 'calculation',
-                calc_key=f'S.H_{tag} coil', display_side='right')
+                calc_key=f'S.H_{tag} coil', display_side='below')
             add_sensor_dot(
-                f'calc.SC_txv.{tag}', mx + TXV_W / 2 + 26, Y_TXV + 12,
+                f'calc.SC_txv.{tag}', mx, Y_TXV - 8,
                 f'{lb} TXV Subcooling', 'calculation',
-                calc_key=f'S.C-txv.{tag}', display_side='right')
+                calc_key=f'S.C-txv.{tag}', display_side='above')
         add_sensor_dot(
-            'calc.SH_total', CENTER_X - COMP_W / 2 - 26, Y_COMP + 12,
+            'calc.SH_total', CENTER_X - 26, Y_COMP - 10,
             'Compressor Total Superheat', 'calculation',
-            calc_key='S.H_total', display_side='left')
+            calc_key='S.H_total', display_side='above')
         add_sensor_dot(
-            'calc.SC_cond', CENTER_X + COND_W / 2 + 26, Y_COND + COND_H - 12,
+            'calc.SC_cond', CENTER_X, Y_COND + COND_H + 8,
             'Condenser Outlet Subcooling', 'calculation',
-            calc_key='S.C', display_side='right')
+            calc_key='S.C', display_side='below')
+        add_sensor_dot(
+            'P_suc', CENTER_X + 26, Y_COMP - 10,
+            'Suction Pressure', 'pressure', display_side='above')
+        add_sensor_dot(
+            'P_disc', CENTER_X + 26, Y_COMP + COMP_H + 14,
+            'Discharge Pressure', 'pressure', display_side='right')
+        add_sensor_dot(
+            'm_dot_meas', CENTER_X + 36, Y_COND + COND_H + 22,
+            'Flowmeter (Mass Flow)', 'flow', display_side='right')
+        add_sensor_dot(
+            'T_flowmeter.in', CENTER_X + 72, Y_COND + COND_H + 22,
+            'Temp into Flowmeter', 'temperature', display_side='right')
 
     add_calc_callouts()
 
