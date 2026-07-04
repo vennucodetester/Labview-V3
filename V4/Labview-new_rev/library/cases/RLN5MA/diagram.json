@@ -1,0 +1,4324 @@
+{
+  "components": {
+    "c0_comp": {
+      "type": "Compressor",
+      "position": [
+        20.0,
+        100
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_hgbv": {
+      "type": "LabeledBox",
+      "position": [
+        -80.0,
+        190
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nBypass",
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_hgs": {
+      "type": "LabeledBox",
+      "position": [
+        -80.0,
+        286
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nSolenoid",
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_cond": {
+      "type": "Condenser",
+      "position": [
+        90.0,
+        190
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "LH",
+        "condenser_type": "Air Cooled"
+      },
+      "_simple_mode": true
+    },
+    "c0_lls": {
+      "type": "LabeledBox",
+      "position": [
+        90.0,
+        286
+      ],
+      "size": {
+        "width": 120,
+        "height": 40
+      },
+      "properties": {
+        "label": "Liquid Line\nSolenoid",
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_txv": {
+      "type": "TXV",
+      "position": [
+        90.0,
+        350
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_dist": {
+      "type": "SplitterManifold",
+      "position": [
+        7.0,
+        440
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_evap": {
+      "type": "Evaporator",
+      "position": [
+        7.0,
+        495
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 80
+      },
+      "properties": {
+        "circuits": 6,
+        "port_spacing": 57.2,
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_head": {
+      "type": "CombinerManifold",
+      "position": [
+        7.0,
+        575
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "LH"
+      },
+      "_simple_mode": true
+    },
+    "c0_bnd_proc": {
+      "type": "Boundary",
+      "position": [
+        -120.0,
+        60
+      ],
+      "size": {
+        "width": 473.0,
+        "height": 600
+      },
+      "properties": {
+        "label": "Refrigeration Process [LH Cassette]",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    },
+    "c1_comp": {
+      "type": "Compressor",
+      "position": [
+        540.0,
+        100
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_hgbv": {
+      "type": "LabeledBox",
+      "position": [
+        440.0,
+        190
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nBypass",
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_hgs": {
+      "type": "LabeledBox",
+      "position": [
+        440.0,
+        286
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nSolenoid",
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_cond": {
+      "type": "Condenser",
+      "position": [
+        610.0,
+        190
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "CTR",
+        "condenser_type": "Air Cooled"
+      },
+      "_simple_mode": true
+    },
+    "c1_lls": {
+      "type": "LabeledBox",
+      "position": [
+        610.0,
+        286
+      ],
+      "size": {
+        "width": 120,
+        "height": 40
+      },
+      "properties": {
+        "label": "Liquid Line\nSolenoid",
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_txv": {
+      "type": "TXV",
+      "position": [
+        610.0,
+        350
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_dist": {
+      "type": "SplitterManifold",
+      "position": [
+        527.0,
+        440
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_evap": {
+      "type": "Evaporator",
+      "position": [
+        527.0,
+        495
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 80
+      },
+      "properties": {
+        "circuits": 6,
+        "port_spacing": 57.2,
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_head": {
+      "type": "CombinerManifold",
+      "position": [
+        527.0,
+        575
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "CTR"
+      },
+      "_simple_mode": true
+    },
+    "c1_bnd_proc": {
+      "type": "Boundary",
+      "position": [
+        400.0,
+        60
+      ],
+      "size": {
+        "width": 473.0,
+        "height": 600
+      },
+      "properties": {
+        "label": "Refrigeration Process [CTR Cassette]",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    },
+    "c2_comp": {
+      "type": "Compressor",
+      "position": [
+        1060.0,
+        100
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_hgbv": {
+      "type": "LabeledBox",
+      "position": [
+        960.0,
+        190
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nBypass",
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_hgs": {
+      "type": "LabeledBox",
+      "position": [
+        960.0,
+        286
+      ],
+      "size": {
+        "width": 100,
+        "height": 50
+      },
+      "properties": {
+        "label": "Hot Gas\nSolenoid",
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_cond": {
+      "type": "Condenser",
+      "position": [
+        1130.0,
+        190
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "RH",
+        "condenser_type": "Air Cooled"
+      },
+      "_simple_mode": true
+    },
+    "c2_lls": {
+      "type": "LabeledBox",
+      "position": [
+        1130.0,
+        286
+      ],
+      "size": {
+        "width": 120,
+        "height": 40
+      },
+      "properties": {
+        "label": "Liquid Line\nSolenoid",
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_txv": {
+      "type": "TXV",
+      "position": [
+        1130.0,
+        350
+      ],
+      "size": {
+        "width": 120,
+        "height": 60
+      },
+      "properties": {
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_dist": {
+      "type": "SplitterManifold",
+      "position": [
+        1047.0,
+        440
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_evap": {
+      "type": "Evaporator",
+      "position": [
+        1047.0,
+        495
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 80
+      },
+      "properties": {
+        "circuits": 6,
+        "port_spacing": 57.2,
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_head": {
+      "type": "CombinerManifold",
+      "position": [
+        1047.0,
+        575
+      ],
+      "size": {
+        "width": 286.0,
+        "height": 40
+      },
+      "properties": {
+        "circuits": 6,
+        "circuit_label": "RH"
+      },
+      "_simple_mode": true
+    },
+    "c2_bnd_proc": {
+      "type": "Boundary",
+      "position": [
+        920.0,
+        60
+      ],
+      "size": {
+        "width": 473.0,
+        "height": 600
+      },
+      "properties": {
+        "label": "Refrigeration Process [RH Cassette]",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    },
+    "deco_ret_air": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        760
+      ],
+      "size": {
+        "width": 1560,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#FFCDD2",
+        "label": "Return Air"
+      },
+      "_simple_mode": true
+    },
+    "deco_pri_air": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        920
+      ],
+      "size": {
+        "width": 1560,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#B3E5FC",
+        "label": "Primary Discharge Air"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_1_1": {
+      "type": "DecorativeRect",
+      "position": [
+        -25.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan LH-1"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_1_1_top": {
+      "type": "AirArrow",
+      "position": [
+        0.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_1_1_bot": {
+      "type": "AirArrow",
+      "position": [
+        0.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_1_2": {
+      "type": "DecorativeRect",
+      "position": [
+        125.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan LH-2"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_1_2_top": {
+      "type": "AirArrow",
+      "position": [
+        150.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_1_2_bot": {
+      "type": "AirArrow",
+      "position": [
+        150.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_2_1": {
+      "type": "DecorativeRect",
+      "position": [
+        495.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan CTR-1"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_2_1_top": {
+      "type": "AirArrow",
+      "position": [
+        520.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_2_1_bot": {
+      "type": "AirArrow",
+      "position": [
+        520.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_2_2": {
+      "type": "DecorativeRect",
+      "position": [
+        645.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan CTR-2"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_2_2_top": {
+      "type": "AirArrow",
+      "position": [
+        670.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_2_2_bot": {
+      "type": "AirArrow",
+      "position": [
+        670.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_3_1": {
+      "type": "DecorativeRect",
+      "position": [
+        1015.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan RH-1"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_3_1_top": {
+      "type": "AirArrow",
+      "position": [
+        1040.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_3_1_bot": {
+      "type": "AirArrow",
+      "position": [
+        1040.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_fan_cass_3_2": {
+      "type": "DecorativeRect",
+      "position": [
+        1165.0,
+        825
+      ],
+      "size": {
+        "width": 60,
+        "height": 60
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Evap Fan RH-2"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_3_2_top": {
+      "type": "AirArrow",
+      "position": [
+        1190.0,
+        815
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_arr_cass_3_2_bot": {
+      "type": "AirArrow",
+      "position": [
+        1190.0,
+        885
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "bnd_air": {
+      "type": "Boundary",
+      "position": [
+        -380.0,
+        720
+      ],
+      "size": {
+        "width": 1860,
+        "height": 270
+      },
+      "properties": {
+        "label": "Airflow Diagram",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_0": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1050
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 1"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_1": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1100
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 2"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_2": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1150
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 3"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_3": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1200
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 4"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_4": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1250
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 5"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_0_5": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1300
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 6"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_0": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1050
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 1"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_1": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1100
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 2"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_2": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1150
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 3"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_3": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1200
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 4"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_4": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1250
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 5"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_1_5": {
+      "type": "DecorativeRect",
+      "position": [
+        340.0,
+        1300
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 6"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_0": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1050
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 1"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_1": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1100
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 2"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_2": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1150
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 3"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_3": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1200
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 4"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_4": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1250
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 5"
+      },
+      "_simple_mode": true
+    },
+    "deco_shelf_2_5": {
+      "type": "DecorativeRect",
+      "position": [
+        860.0,
+        1300
+      ],
+      "size": {
+        "width": 520.0,
+        "height": 30
+      },
+      "properties": {
+        "bg_color": "#F0F0F0",
+        "label": "Shelf 6"
+      },
+      "_simple_mode": true
+    },
+    "bnd_shelf": {
+      "type": "Boundary",
+      "position": [
+        -380.0,
+        1010
+      ],
+      "size": {
+        "width": 1860,
+        "height": 340
+      },
+      "properties": {
+        "label": "Shelving Diagram",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_lh": {
+      "type": "DecorativeRect",
+      "position": [
+        232.0,
+        200.0
+      ],
+      "size": {
+        "width": 104.0,
+        "height": 40
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Cond. Fan LH"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_lh_arr_in": {
+      "type": "AirArrow",
+      "position": [
+        279.0,
+        188.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_lh_arr_out": {
+      "type": "AirArrow",
+      "position": [
+        279.0,
+        242.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_ctr": {
+      "type": "DecorativeRect",
+      "position": [
+        752.0,
+        200.0
+      ],
+      "size": {
+        "width": 104.0,
+        "height": 40
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Cond. Fan CTR"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_ctr_arr_in": {
+      "type": "AirArrow",
+      "position": [
+        799.0,
+        188.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_ctr_arr_out": {
+      "type": "AirArrow",
+      "position": [
+        799.0,
+        242.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_rh": {
+      "type": "DecorativeRect",
+      "position": [
+        1272.0,
+        200.0
+      ],
+      "size": {
+        "width": 104.0,
+        "height": 40
+      },
+      "properties": {
+        "bg_color": "#E0E0E0",
+        "label": "Cond. Fan RH"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_rh_arr_in": {
+      "type": "AirArrow",
+      "position": [
+        1319.0,
+        188.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_condfan_rh_arr_out": {
+      "type": "AirArrow",
+      "position": [
+        1319.0,
+        242.0
+      ],
+      "size": {
+        "width": 10,
+        "height": 10
+      },
+      "properties": {
+        "direction": "down"
+      },
+      "_simple_mode": true
+    },
+    "deco_mull_lh": {
+      "type": "DecorativeRect",
+      "position": [
+        -180.0,
+        1410
+      ],
+      "size": {
+        "width": 16,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#B0BEC5",
+        "label": ""
+      },
+      "_simple_mode": true
+    },
+    "deco_door_1": {
+      "type": "DecorativeRect",
+      "position": [
+        -160.0,
+        1410
+      ],
+      "size": {
+        "width": 490.6666666666667,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#E1F5FE",
+        "label": "Door 1"
+      },
+      "_simple_mode": true
+    },
+    "deco_mull_ctr_0": {
+      "type": "DecorativeRect",
+      "position": [
+        334.6666666666667,
+        1410
+      ],
+      "size": {
+        "width": 16,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#B0BEC5",
+        "label": ""
+      },
+      "_simple_mode": true
+    },
+    "deco_door_2": {
+      "type": "DecorativeRect",
+      "position": [
+        354.6666666666667,
+        1410
+      ],
+      "size": {
+        "width": 490.6666666666667,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#E1F5FE",
+        "label": "Door 2"
+      },
+      "_simple_mode": true
+    },
+    "deco_mull_ctr_1": {
+      "type": "DecorativeRect",
+      "position": [
+        849.3333333333334,
+        1410
+      ],
+      "size": {
+        "width": 16,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#B0BEC5",
+        "label": ""
+      },
+      "_simple_mode": true
+    },
+    "deco_door_3": {
+      "type": "DecorativeRect",
+      "position": [
+        869.3333333333334,
+        1410
+      ],
+      "size": {
+        "width": 490.6666666666667,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#E1F5FE",
+        "label": "Door 3"
+      },
+      "_simple_mode": true
+    },
+    "deco_mull_rh": {
+      "type": "DecorativeRect",
+      "position": [
+        1364.0,
+        1410
+      ],
+      "size": {
+        "width": 16,
+        "height": 240
+      },
+      "properties": {
+        "bg_color": "#B0BEC5",
+        "label": ""
+      },
+      "_simple_mode": true
+    },
+    "bnd_doors": {
+      "type": "Boundary",
+      "position": [
+        -380.0,
+        1370
+      ],
+      "size": {
+        "width": 1860,
+        "height": 300
+      },
+      "properties": {
+        "label": "Doors Diagram",
+        "stroke_color": "#AAAAAA"
+      },
+      "_simple_mode": true
+    }
+  },
+  "pipes": {
+    "c0_p_comp_hgbv": {
+      "start_component_id": "c0_comp",
+      "start_port": "outlet",
+      "end_component_id": "c0_hgbv",
+      "end_port": "inlet",
+      "route": [
+        [
+          80.0,
+          160
+        ],
+        [
+          80.0,
+          182
+        ],
+        [
+          -30.0,
+          182
+        ],
+        [
+          -30.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_comp_cond": {
+      "start_component_id": "c0_comp",
+      "start_port": "outlet",
+      "end_component_id": "c0_cond",
+      "end_port": "inlet",
+      "route": [
+        [
+          80.0,
+          160
+        ],
+        [
+          80.0,
+          182
+        ],
+        [
+          150.0,
+          182
+        ],
+        [
+          150.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_hgbv_hgs": {
+      "start_component_id": "c0_hgbv",
+      "start_port": "outlet",
+      "end_component_id": "c0_hgs",
+      "end_port": "inlet",
+      "route": [
+        [
+          -30.0,
+          240
+        ],
+        [
+          -30.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_cond_lls": {
+      "start_component_id": "c0_cond",
+      "start_port": "outlet",
+      "end_component_id": "c0_lls",
+      "end_port": "inlet",
+      "route": [
+        [
+          150.0,
+          250
+        ],
+        [
+          150.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_lls_txv": {
+      "start_component_id": "c0_lls",
+      "start_port": "outlet",
+      "end_component_id": "c0_txv",
+      "end_port": "inlet",
+      "route": [
+        [
+          150.0,
+          326
+        ],
+        [
+          150.0,
+          350
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_txv_dist": {
+      "start_component_id": "c0_txv",
+      "start_port": "outlet",
+      "end_component_id": "c0_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          150.0,
+          410
+        ],
+        [
+          150.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_hgs_asc": {
+      "start_component_id": "c0_hgs",
+      "start_port": "outlet",
+      "end_component_id": "c0_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          -30.0,
+          336
+        ],
+        [
+          -30.0,
+          406
+        ],
+        [
+          150.0,
+          406
+        ],
+        [
+          150.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_1": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_1",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_1",
+      "route": [
+        [
+          7.0,
+          480
+        ],
+        [
+          7.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_1": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_1",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_1",
+      "route": [
+        [
+          7.0,
+          575
+        ],
+        [
+          7.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_2": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_2",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_2",
+      "route": [
+        [
+          64.2,
+          480
+        ],
+        [
+          64.2,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_2": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_2",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_2",
+      "route": [
+        [
+          64.2,
+          575
+        ],
+        [
+          64.2,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_3": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_3",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_3",
+      "route": [
+        [
+          121.4,
+          480
+        ],
+        [
+          121.4,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_3": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_3",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_3",
+      "route": [
+        [
+          121.4,
+          575
+        ],
+        [
+          121.4,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_4": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_4",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_4",
+      "route": [
+        [
+          178.60000000000002,
+          480
+        ],
+        [
+          178.60000000000002,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_4": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_4",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_4",
+      "route": [
+        [
+          178.60000000000002,
+          575
+        ],
+        [
+          178.60000000000002,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_5": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_5",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_5",
+      "route": [
+        [
+          235.8,
+          480
+        ],
+        [
+          235.8,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_5": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_5",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_5",
+      "route": [
+        [
+          235.8,
+          575
+        ],
+        [
+          235.8,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_dist_evap_6": {
+      "start_component_id": "c0_dist",
+      "start_port": "outlet_6",
+      "end_component_id": "c0_evap",
+      "end_port": "inlet_circuit_6",
+      "route": [
+        [
+          293.0,
+          480
+        ],
+        [
+          293.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_evap_head_6": {
+      "start_component_id": "c0_evap",
+      "start_port": "outlet_circuit_6",
+      "end_component_id": "c0_head",
+      "end_port": "inlet_6",
+      "route": [
+        [
+          293.0,
+          575
+        ],
+        [
+          293.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c0_p_loopback": {
+      "start_component_id": "c0_head",
+      "start_port": "outlet",
+      "end_component_id": "c0_comp",
+      "end_port": "inlet",
+      "route": [
+        [
+          150.0,
+          615
+        ],
+        [
+          150.0,
+          660
+        ],
+        [
+          -103.0,
+          660
+        ],
+        [
+          -103.0,
+          80
+        ],
+        [
+          80.0,
+          80
+        ],
+        [
+          80.0,
+          100
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_comp_hgbv": {
+      "start_component_id": "c1_comp",
+      "start_port": "outlet",
+      "end_component_id": "c1_hgbv",
+      "end_port": "inlet",
+      "route": [
+        [
+          600.0,
+          160
+        ],
+        [
+          600.0,
+          182
+        ],
+        [
+          490.0,
+          182
+        ],
+        [
+          490.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_comp_cond": {
+      "start_component_id": "c1_comp",
+      "start_port": "outlet",
+      "end_component_id": "c1_cond",
+      "end_port": "inlet",
+      "route": [
+        [
+          600.0,
+          160
+        ],
+        [
+          600.0,
+          182
+        ],
+        [
+          670.0,
+          182
+        ],
+        [
+          670.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_hgbv_hgs": {
+      "start_component_id": "c1_hgbv",
+      "start_port": "outlet",
+      "end_component_id": "c1_hgs",
+      "end_port": "inlet",
+      "route": [
+        [
+          490.0,
+          240
+        ],
+        [
+          490.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_cond_lls": {
+      "start_component_id": "c1_cond",
+      "start_port": "outlet",
+      "end_component_id": "c1_lls",
+      "end_port": "inlet",
+      "route": [
+        [
+          670.0,
+          250
+        ],
+        [
+          670.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_lls_txv": {
+      "start_component_id": "c1_lls",
+      "start_port": "outlet",
+      "end_component_id": "c1_txv",
+      "end_port": "inlet",
+      "route": [
+        [
+          670.0,
+          326
+        ],
+        [
+          670.0,
+          350
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_txv_dist": {
+      "start_component_id": "c1_txv",
+      "start_port": "outlet",
+      "end_component_id": "c1_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          670.0,
+          410
+        ],
+        [
+          670.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_hgs_asc": {
+      "start_component_id": "c1_hgs",
+      "start_port": "outlet",
+      "end_component_id": "c1_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          490.0,
+          336
+        ],
+        [
+          490.0,
+          406
+        ],
+        [
+          670.0,
+          406
+        ],
+        [
+          670.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_1": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_1",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_1",
+      "route": [
+        [
+          527.0,
+          480
+        ],
+        [
+          527.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_1": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_1",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_1",
+      "route": [
+        [
+          527.0,
+          575
+        ],
+        [
+          527.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_2": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_2",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_2",
+      "route": [
+        [
+          584.2,
+          480
+        ],
+        [
+          584.2,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_2": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_2",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_2",
+      "route": [
+        [
+          584.2,
+          575
+        ],
+        [
+          584.2,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_3": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_3",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_3",
+      "route": [
+        [
+          641.4,
+          480
+        ],
+        [
+          641.4,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_3": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_3",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_3",
+      "route": [
+        [
+          641.4,
+          575
+        ],
+        [
+          641.4,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_4": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_4",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_4",
+      "route": [
+        [
+          698.6,
+          480
+        ],
+        [
+          698.6,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_4": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_4",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_4",
+      "route": [
+        [
+          698.6,
+          575
+        ],
+        [
+          698.6,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_5": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_5",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_5",
+      "route": [
+        [
+          755.8,
+          480
+        ],
+        [
+          755.8,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_5": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_5",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_5",
+      "route": [
+        [
+          755.8,
+          575
+        ],
+        [
+          755.8,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_dist_evap_6": {
+      "start_component_id": "c1_dist",
+      "start_port": "outlet_6",
+      "end_component_id": "c1_evap",
+      "end_port": "inlet_circuit_6",
+      "route": [
+        [
+          813.0,
+          480
+        ],
+        [
+          813.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_evap_head_6": {
+      "start_component_id": "c1_evap",
+      "start_port": "outlet_circuit_6",
+      "end_component_id": "c1_head",
+      "end_port": "inlet_6",
+      "route": [
+        [
+          813.0,
+          575
+        ],
+        [
+          813.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c1_p_loopback": {
+      "start_component_id": "c1_head",
+      "start_port": "outlet",
+      "end_component_id": "c1_comp",
+      "end_port": "inlet",
+      "route": [
+        [
+          670.0,
+          615
+        ],
+        [
+          670.0,
+          660
+        ],
+        [
+          417.0,
+          660
+        ],
+        [
+          417.0,
+          80
+        ],
+        [
+          600.0,
+          80
+        ],
+        [
+          600.0,
+          100
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_comp_hgbv": {
+      "start_component_id": "c2_comp",
+      "start_port": "outlet",
+      "end_component_id": "c2_hgbv",
+      "end_port": "inlet",
+      "route": [
+        [
+          1120.0,
+          160
+        ],
+        [
+          1120.0,
+          182
+        ],
+        [
+          1010.0,
+          182
+        ],
+        [
+          1010.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_comp_cond": {
+      "start_component_id": "c2_comp",
+      "start_port": "outlet",
+      "end_component_id": "c2_cond",
+      "end_port": "inlet",
+      "route": [
+        [
+          1120.0,
+          160
+        ],
+        [
+          1120.0,
+          182
+        ],
+        [
+          1190.0,
+          182
+        ],
+        [
+          1190.0,
+          190
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_hgbv_hgs": {
+      "start_component_id": "c2_hgbv",
+      "start_port": "outlet",
+      "end_component_id": "c2_hgs",
+      "end_port": "inlet",
+      "route": [
+        [
+          1010.0,
+          240
+        ],
+        [
+          1010.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_cond_lls": {
+      "start_component_id": "c2_cond",
+      "start_port": "outlet",
+      "end_component_id": "c2_lls",
+      "end_port": "inlet",
+      "route": [
+        [
+          1190.0,
+          250
+        ],
+        [
+          1190.0,
+          286
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_lls_txv": {
+      "start_component_id": "c2_lls",
+      "start_port": "outlet",
+      "end_component_id": "c2_txv",
+      "end_port": "inlet",
+      "route": [
+        [
+          1190.0,
+          326
+        ],
+        [
+          1190.0,
+          350
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_txv_dist": {
+      "start_component_id": "c2_txv",
+      "start_port": "outlet",
+      "end_component_id": "c2_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          1190.0,
+          410
+        ],
+        [
+          1190.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_hgs_asc": {
+      "start_component_id": "c2_hgs",
+      "start_port": "outlet",
+      "end_component_id": "c2_dist",
+      "end_port": "inlet",
+      "route": [
+        [
+          1010.0,
+          336
+        ],
+        [
+          1010.0,
+          406
+        ],
+        [
+          1190.0,
+          406
+        ],
+        [
+          1190.0,
+          440
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_1": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_1",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_1",
+      "route": [
+        [
+          1047.0,
+          480
+        ],
+        [
+          1047.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_1": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_1",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_1",
+      "route": [
+        [
+          1047.0,
+          575
+        ],
+        [
+          1047.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_2": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_2",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_2",
+      "route": [
+        [
+          1104.2,
+          480
+        ],
+        [
+          1104.2,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_2": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_2",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_2",
+      "route": [
+        [
+          1104.2,
+          575
+        ],
+        [
+          1104.2,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_3": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_3",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_3",
+      "route": [
+        [
+          1161.4,
+          480
+        ],
+        [
+          1161.4,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_3": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_3",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_3",
+      "route": [
+        [
+          1161.4,
+          575
+        ],
+        [
+          1161.4,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_4": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_4",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_4",
+      "route": [
+        [
+          1218.6,
+          480
+        ],
+        [
+          1218.6,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_4": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_4",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_4",
+      "route": [
+        [
+          1218.6,
+          575
+        ],
+        [
+          1218.6,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_5": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_5",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_5",
+      "route": [
+        [
+          1275.8,
+          480
+        ],
+        [
+          1275.8,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_5": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_5",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_5",
+      "route": [
+        [
+          1275.8,
+          575
+        ],
+        [
+          1275.8,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_dist_evap_6": {
+      "start_component_id": "c2_dist",
+      "start_port": "outlet_6",
+      "end_component_id": "c2_evap",
+      "end_port": "inlet_circuit_6",
+      "route": [
+        [
+          1333.0,
+          480
+        ],
+        [
+          1333.0,
+          495
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_evap_head_6": {
+      "start_component_id": "c2_evap",
+      "start_port": "outlet_circuit_6",
+      "end_component_id": "c2_head",
+      "end_port": "inlet_6",
+      "route": [
+        [
+          1333.0,
+          575
+        ],
+        [
+          1333.0,
+          575
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    },
+    "c2_p_loopback": {
+      "start_component_id": "c2_head",
+      "start_port": "outlet",
+      "end_component_id": "c2_comp",
+      "end_port": "inlet",
+      "route": [
+        [
+          1190.0,
+          615
+        ],
+        [
+          1190.0,
+          660
+        ],
+        [
+          937.0,
+          660
+        ],
+        [
+          937.0,
+          80
+        ],
+        [
+          1120.0,
+          80
+        ],
+        [
+          1120.0,
+          100
+        ]
+      ],
+      "_simple_mode": true,
+      "route_locked": true,
+      "_raw_route": true
+    }
+  },
+  "sensor_roles": {},
+  "custom_sensors": {
+    "calc.SH.lh": {
+      "type": "calculation",
+      "position": [
+        223.0,
+        535.0
+      ],
+      "label": "LH Coil Superheat",
+      "calc_key": "S.H_lh coil",
+      "display_side": "right"
+    },
+    "calc.SH_total.lh": {
+      "type": "calculation",
+      "position": [
+        20.0,
+        130.0
+      ],
+      "label": "LH Compressor Superheat",
+      "calc_key": "S.H_total-lh",
+      "display_side": "left"
+    },
+    "calc.SC_txv.lh": {
+      "type": "calculation",
+      "position": [
+        20.0,
+        380.0
+      ],
+      "label": "LH TXV Subcooling",
+      "calc_key": "S.C-txv.lh",
+      "display_side": "left"
+    },
+    "calc.SC_cond.lh": {
+      "type": "calculation",
+      "position": [
+        140.0,
+        234
+      ],
+      "label": "LH Condenser Subcooling",
+      "calc_key": "S.C-lh",
+      "display_side": "right"
+    },
+    "calc.SH.ctr": {
+      "type": "calculation",
+      "position": [
+        743.0,
+        535.0
+      ],
+      "label": "CTR Coil Superheat",
+      "calc_key": "S.H_ctr coil",
+      "display_side": "right"
+    },
+    "calc.SH_total.ctr": {
+      "type": "calculation",
+      "position": [
+        540.0,
+        130.0
+      ],
+      "label": "CTR Compressor Superheat",
+      "calc_key": "S.H_total-ctr",
+      "display_side": "left"
+    },
+    "calc.SC_txv.ctr": {
+      "type": "calculation",
+      "position": [
+        540.0,
+        380.0
+      ],
+      "label": "CTR TXV Subcooling",
+      "calc_key": "S.C-txv.ctr",
+      "display_side": "left"
+    },
+    "calc.SC_cond.ctr": {
+      "type": "calculation",
+      "position": [
+        660.0,
+        234
+      ],
+      "label": "CTR Condenser Subcooling",
+      "calc_key": "S.C-ctr",
+      "display_side": "right"
+    },
+    "calc.SH.rh": {
+      "type": "calculation",
+      "position": [
+        1263.0,
+        535.0
+      ],
+      "label": "RH Coil Superheat",
+      "calc_key": "S.H_rh coil",
+      "display_side": "right"
+    },
+    "calc.SH_total.rh": {
+      "type": "calculation",
+      "position": [
+        1060.0,
+        130.0
+      ],
+      "label": "RH Compressor Superheat",
+      "calc_key": "S.H_total-rh",
+      "display_side": "left"
+    },
+    "calc.SC_txv.rh": {
+      "type": "calculation",
+      "position": [
+        1060.0,
+        380.0
+      ],
+      "label": "RH TXV Subcooling",
+      "calc_key": "S.C-txv.rh",
+      "display_side": "left"
+    },
+    "calc.SC_cond.rh": {
+      "type": "calculation",
+      "position": [
+        1180.0,
+        234
+      ],
+      "label": "RH Condenser Subcooling",
+      "calc_key": "S.C-rh",
+      "display_side": "right"
+    },
+    "T_air.disc.s1": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 2in LE",
+      "display_side": "right"
+    },
+    "T_air.ret.s1": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        775
+      ],
+      "label": "Return Air - 2in LE",
+      "display_side": "right"
+    },
+    "T_air.disc.s2": {
+      "type": "temperature",
+      "position": [
+        -24.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 12in LE",
+      "display_side": "below"
+    },
+    "T_air.ret.s2": {
+      "type": "temperature",
+      "position": [
+        -24.0,
+        775
+      ],
+      "label": "Return Air - 12in LE",
+      "display_side": "below"
+    },
+    "T_air.disc.s3": {
+      "type": "temperature",
+      "position": [
+        132.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 24in LE",
+      "display_side": "above"
+    },
+    "T_air.ret.s3": {
+      "type": "temperature",
+      "position": [
+        132.0,
+        775
+      ],
+      "label": "Return Air - 24in LE",
+      "display_side": "above"
+    },
+    "T_air.disc.s4": {
+      "type": "temperature",
+      "position": [
+        288.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 42in LE",
+      "display_side": "below"
+    },
+    "T_air.ret.s4": {
+      "type": "temperature",
+      "position": [
+        288.0,
+        775
+      ],
+      "label": "Return Air - 42in LE",
+      "display_side": "below"
+    },
+    "T_air.disc.s5": {
+      "type": "temperature",
+      "position": [
+        444.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 54in LE",
+      "display_side": "above"
+    },
+    "T_air.ret.s5": {
+      "type": "temperature",
+      "position": [
+        444.0,
+        775
+      ],
+      "label": "Return Air - 54in LE",
+      "display_side": "above"
+    },
+    "T_air.disc.s6": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        935
+      ],
+      "label": "Primary Discharge Air - Center",
+      "display_side": "below"
+    },
+    "T_air.ret.s6": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        775
+      ],
+      "label": "Return Air - Center",
+      "display_side": "below"
+    },
+    "T_air.disc.s7": {
+      "type": "temperature",
+      "position": [
+        756.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 54in RE",
+      "display_side": "above"
+    },
+    "T_air.ret.s7": {
+      "type": "temperature",
+      "position": [
+        756.0,
+        775
+      ],
+      "label": "Return Air - 54in RE",
+      "display_side": "above"
+    },
+    "T_air.disc.s8": {
+      "type": "temperature",
+      "position": [
+        912.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 42in RE",
+      "display_side": "below"
+    },
+    "T_air.ret.s8": {
+      "type": "temperature",
+      "position": [
+        912.0,
+        775
+      ],
+      "label": "Return Air - 42in RE",
+      "display_side": "below"
+    },
+    "T_air.disc.s9": {
+      "type": "temperature",
+      "position": [
+        1068.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 24in RE",
+      "display_side": "above"
+    },
+    "T_air.ret.s9": {
+      "type": "temperature",
+      "position": [
+        1068.0,
+        775
+      ],
+      "label": "Return Air - 24in RE",
+      "display_side": "above"
+    },
+    "T_air.disc.s10": {
+      "type": "temperature",
+      "position": [
+        1224.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 12in RE",
+      "display_side": "below"
+    },
+    "T_air.ret.s10": {
+      "type": "temperature",
+      "position": [
+        1224.0,
+        775
+      ],
+      "label": "Return Air - 12in RE",
+      "display_side": "below"
+    },
+    "T_air.disc.s11": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        935
+      ],
+      "label": "Primary Discharge Air - 2in RE",
+      "display_side": "left"
+    },
+    "T_air.ret.s11": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        775
+      ],
+      "label": "Return Air - 2in RE",
+      "display_side": "left"
+    },
+    "T_prod.top.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1050
+      ],
+      "label": "Product Sim - Top Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.top.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1080
+      ],
+      "label": "Product Sim - Top Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.r2.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1100
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.r2.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1130
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.r3.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1150
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.r3.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1180
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.r4.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1200
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.r4.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1230
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.r5.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1250
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.r5.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1280
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.btm.LE.r": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1300
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Rear",
+      "display_side": "right"
+    },
+    "T_prod.btm.LE.f": {
+      "type": "temperature",
+      "position": [
+        -180.0,
+        1330
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Front",
+      "display_side": "right"
+    },
+    "T_prod.top.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1050
+      ],
+      "label": "Product Sim - Top Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.top.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1080
+      ],
+      "label": "Product Sim - Top Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.r2.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1100
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.r2.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1130
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.r3.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1150
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.r3.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1180
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.r4.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1200
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.r4.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1230
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.r5.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1250
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.r5.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1280
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.btm.RE.r": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1300
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Rear",
+      "display_side": "left"
+    },
+    "T_prod.btm.RE.f": {
+      "type": "temperature",
+      "position": [
+        1380.0,
+        1330
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Front",
+      "display_side": "left"
+    },
+    "T_prod.top.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1050
+      ],
+      "label": "Product Sim - Top Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.top.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1080
+      ],
+      "label": "Product Sim - Top Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r2.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1100
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r2.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1130
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r3.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1150
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r3.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1180
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r4.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1200
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r4.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1230
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r5.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1250
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r5.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1280
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.btm.Ctr.r": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1300
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.btm.Ctr.f": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1330
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.top.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1050
+      ],
+      "label": "Product Sim - Top Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.top.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1080
+      ],
+      "label": "Product Sim - Top Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r2.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1100
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r2.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1130
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r3.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1150
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r3.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1180
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r4.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1200
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r4.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1230
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r5.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1250
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r5.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1280
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.btm.LE48.r": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1300
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.btm.LE48.f": {
+      "type": "temperature",
+      "position": [
+        340.0,
+        1330
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.top.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1050
+      ],
+      "label": "Product Sim - Top Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.top.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1080
+      ],
+      "label": "Product Sim - Top Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r2.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1100
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r2.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1130
+      ],
+      "label": "Product Sim - 2nd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r3.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1150
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r3.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1180
+      ],
+      "label": "Product Sim - 3rd Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r4.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1200
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r4.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1230
+      ],
+      "label": "Product Sim - 4th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.r5.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1250
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.r5.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1280
+      ],
+      "label": "Product Sim - 5th Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_prod.btm.RE48.r": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1300
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Rear",
+      "display_side": "above"
+    },
+    "T_prod.btm.RE48.f": {
+      "type": "temperature",
+      "position": [
+        860.0,
+        1330
+      ],
+      "label": "Product Sim - Bottom Shelf - LE - Front",
+      "display_side": "below"
+    },
+    "T_air.fan_in.lh.LE": {
+      "type": "temperature",
+      "position": [
+        5.0,
+        811
+      ],
+      "label": "Fan LH Air In - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_in.lh.RE": {
+      "type": "temperature",
+      "position": [
+        155.0,
+        811
+      ],
+      "label": "Fan LH Air In - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.lh.LE": {
+      "type": "temperature",
+      "position": [
+        5.0,
+        899
+      ],
+      "label": "Fan LH Air Off - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_off.lh.RE": {
+      "type": "temperature",
+      "position": [
+        155.0,
+        899
+      ],
+      "label": "Fan LH Air Off - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.lh.avg": {
+      "type": "temperature",
+      "position": [
+        80.0,
+        917
+      ],
+      "label": "Discharge Air Sensor (LH)",
+      "display_side": "below"
+    },
+    "T_air.fan_in.ctr.LE": {
+      "type": "temperature",
+      "position": [
+        525.0,
+        811
+      ],
+      "label": "Fan CTR Air In - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_in.ctr.RE": {
+      "type": "temperature",
+      "position": [
+        675.0,
+        811
+      ],
+      "label": "Fan CTR Air In - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.ctr.LE": {
+      "type": "temperature",
+      "position": [
+        525.0,
+        899
+      ],
+      "label": "Fan CTR Air Off - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_off.ctr.RE": {
+      "type": "temperature",
+      "position": [
+        675.0,
+        899
+      ],
+      "label": "Fan CTR Air Off - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.ctr.avg": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        917
+      ],
+      "label": "Discharge Air Sensor (CTR)",
+      "display_side": "below"
+    },
+    "T_air.fan_in.rh.LE": {
+      "type": "temperature",
+      "position": [
+        1045.0,
+        811
+      ],
+      "label": "Fan RH Air In - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_in.rh.RE": {
+      "type": "temperature",
+      "position": [
+        1195.0,
+        811
+      ],
+      "label": "Fan RH Air In - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.rh.LE": {
+      "type": "temperature",
+      "position": [
+        1045.0,
+        899
+      ],
+      "label": "Fan RH Air Off - LE",
+      "display_side": "left"
+    },
+    "T_air.fan_off.rh.RE": {
+      "type": "temperature",
+      "position": [
+        1195.0,
+        899
+      ],
+      "label": "Fan RH Air Off - RE",
+      "display_side": "right"
+    },
+    "T_air.fan_off.rh.avg": {
+      "type": "temperature",
+      "position": [
+        1120.0,
+        917
+      ],
+      "label": "Discharge Air Sensor (RH)",
+      "display_side": "below"
+    },
+    "T_air.cond_in.lh.LE": {
+      "type": "temperature",
+      "position": [
+        258.0,
+        190.0
+      ],
+      "label": "Condenser Air In (LH LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_in.lh.RE": {
+      "type": "temperature",
+      "position": [
+        310.0,
+        190.0
+      ],
+      "label": "Condenser Air In (LH RE)",
+      "display_side": "right"
+    },
+    "T_air.cond_out.lh.LE": {
+      "type": "temperature",
+      "position": [
+        258.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (LH LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_out.lh.RE": {
+      "type": "temperature",
+      "position": [
+        310.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (LH RE)",
+      "display_side": "right"
+    },
+    "T_air.cond_in.ctr.LE": {
+      "type": "temperature",
+      "position": [
+        778.0,
+        190.0
+      ],
+      "label": "Condenser Air In (CTR LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_in.ctr.RE": {
+      "type": "temperature",
+      "position": [
+        830.0,
+        190.0
+      ],
+      "label": "Condenser Air In (CTR RE)",
+      "display_side": "right"
+    },
+    "T_air.cond_out.ctr.LE": {
+      "type": "temperature",
+      "position": [
+        778.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (CTR LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_out.ctr.RE": {
+      "type": "temperature",
+      "position": [
+        830.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (CTR RE)",
+      "display_side": "right"
+    },
+    "T_air.cond_in.rh.LE": {
+      "type": "temperature",
+      "position": [
+        1298.0,
+        190.0
+      ],
+      "label": "Condenser Air In (RH LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_in.rh.RE": {
+      "type": "temperature",
+      "position": [
+        1350.0,
+        190.0
+      ],
+      "label": "Condenser Air In (RH RE)",
+      "display_side": "right"
+    },
+    "T_air.cond_out.rh.LE": {
+      "type": "temperature",
+      "position": [
+        1298.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (RH LE)",
+      "display_side": "left"
+    },
+    "T_air.cond_out.rh.RE": {
+      "type": "temperature",
+      "position": [
+        1350.0,
+        250.0
+      ],
+      "label": "Condenser Air Out (RH RE)",
+      "display_side": "right"
+    },
+    "T_door.d1.top.L": {
+      "type": "temperature",
+      "position": [
+        -52.05333333333333,
+        1429.2
+      ],
+      "label": "Door 1 Thermocouple top.L",
+      "display_side": "above"
+    },
+    "T_door.d1.top.R": {
+      "type": "temperature",
+      "position": [
+        222.72000000000003,
+        1429.2
+      ],
+      "label": "Door 1 Thermocouple top.R",
+      "display_side": "above"
+    },
+    "T_door.d1.ctr": {
+      "type": "temperature",
+      "position": [
+        85.33333333333334,
+        1530.0
+      ],
+      "label": "Door 1 Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_door.d1.btm.L": {
+      "type": "temperature",
+      "position": [
+        -52.05333333333333,
+        1630.8
+      ],
+      "label": "Door 1 Thermocouple btm.L",
+      "display_side": "below"
+    },
+    "T_door.d1.btm.R": {
+      "type": "temperature",
+      "position": [
+        222.72000000000003,
+        1630.8
+      ],
+      "label": "Door 1 Thermocouple btm.R",
+      "display_side": "below"
+    },
+    "T_door.d2.top.L": {
+      "type": "temperature",
+      "position": [
+        462.61333333333334,
+        1429.2
+      ],
+      "label": "Door 2 Thermocouple top.L",
+      "display_side": "above"
+    },
+    "T_door.d2.top.R": {
+      "type": "temperature",
+      "position": [
+        737.3866666666668,
+        1429.2
+      ],
+      "label": "Door 2 Thermocouple top.R",
+      "display_side": "above"
+    },
+    "T_door.d2.ctr": {
+      "type": "temperature",
+      "position": [
+        600.0,
+        1530.0
+      ],
+      "label": "Door 2 Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_door.d2.btm.L": {
+      "type": "temperature",
+      "position": [
+        462.61333333333334,
+        1630.8
+      ],
+      "label": "Door 2 Thermocouple btm.L",
+      "display_side": "below"
+    },
+    "T_door.d2.btm.R": {
+      "type": "temperature",
+      "position": [
+        737.3866666666668,
+        1630.8
+      ],
+      "label": "Door 2 Thermocouple btm.R",
+      "display_side": "below"
+    },
+    "T_door.d3.top.L": {
+      "type": "temperature",
+      "position": [
+        977.2800000000001,
+        1429.2
+      ],
+      "label": "Door 3 Thermocouple top.L",
+      "display_side": "above"
+    },
+    "T_door.d3.top.R": {
+      "type": "temperature",
+      "position": [
+        1252.0533333333333,
+        1429.2
+      ],
+      "label": "Door 3 Thermocouple top.R",
+      "display_side": "above"
+    },
+    "T_door.d3.ctr": {
+      "type": "temperature",
+      "position": [
+        1114.6666666666667,
+        1530.0
+      ],
+      "label": "Door 3 Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_door.d3.btm.L": {
+      "type": "temperature",
+      "position": [
+        977.2800000000001,
+        1630.8
+      ],
+      "label": "Door 3 Thermocouple btm.L",
+      "display_side": "below"
+    },
+    "T_door.d3.btm.R": {
+      "type": "temperature",
+      "position": [
+        1252.0533333333333,
+        1630.8
+      ],
+      "label": "Door 3 Thermocouple btm.R",
+      "display_side": "below"
+    },
+    "T_mull.LH.top": {
+      "type": "temperature",
+      "position": [
+        -172.0,
+        1434.0
+      ],
+      "label": "Mullion LH Thermocouple top",
+      "display_side": "right"
+    },
+    "T_mull.LH.upper": {
+      "type": "temperature",
+      "position": [
+        -172.0,
+        1482.0
+      ],
+      "label": "Mullion LH Thermocouple upper",
+      "display_side": "right"
+    },
+    "T_mull.LH.ctr": {
+      "type": "temperature",
+      "position": [
+        -172.0,
+        1530.0
+      ],
+      "label": "Mullion LH Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_mull.LH.lower": {
+      "type": "temperature",
+      "position": [
+        -172.0,
+        1578.0
+      ],
+      "label": "Mullion LH Thermocouple lower",
+      "display_side": "right"
+    },
+    "T_mull.LH.btm": {
+      "type": "temperature",
+      "position": [
+        -172.0,
+        1626.0
+      ],
+      "label": "Mullion LH Thermocouple btm",
+      "display_side": "right"
+    },
+    "T_mull.ctr1.top": {
+      "type": "temperature",
+      "position": [
+        342.6666666666667,
+        1434.0
+      ],
+      "label": "Mullion ctr1 Thermocouple top",
+      "display_side": "right"
+    },
+    "T_mull.ctr1.upper": {
+      "type": "temperature",
+      "position": [
+        342.6666666666667,
+        1482.0
+      ],
+      "label": "Mullion ctr1 Thermocouple upper",
+      "display_side": "right"
+    },
+    "T_mull.ctr1.ctr": {
+      "type": "temperature",
+      "position": [
+        342.6666666666667,
+        1530.0
+      ],
+      "label": "Mullion ctr1 Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_mull.ctr1.lower": {
+      "type": "temperature",
+      "position": [
+        342.6666666666667,
+        1578.0
+      ],
+      "label": "Mullion ctr1 Thermocouple lower",
+      "display_side": "right"
+    },
+    "T_mull.ctr1.btm": {
+      "type": "temperature",
+      "position": [
+        342.6666666666667,
+        1626.0
+      ],
+      "label": "Mullion ctr1 Thermocouple btm",
+      "display_side": "right"
+    },
+    "T_mull.ctr2.top": {
+      "type": "temperature",
+      "position": [
+        857.3333333333334,
+        1434.0
+      ],
+      "label": "Mullion ctr2 Thermocouple top",
+      "display_side": "right"
+    },
+    "T_mull.ctr2.upper": {
+      "type": "temperature",
+      "position": [
+        857.3333333333334,
+        1482.0
+      ],
+      "label": "Mullion ctr2 Thermocouple upper",
+      "display_side": "right"
+    },
+    "T_mull.ctr2.ctr": {
+      "type": "temperature",
+      "position": [
+        857.3333333333334,
+        1530.0
+      ],
+      "label": "Mullion ctr2 Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_mull.ctr2.lower": {
+      "type": "temperature",
+      "position": [
+        857.3333333333334,
+        1578.0
+      ],
+      "label": "Mullion ctr2 Thermocouple lower",
+      "display_side": "right"
+    },
+    "T_mull.ctr2.btm": {
+      "type": "temperature",
+      "position": [
+        857.3333333333334,
+        1626.0
+      ],
+      "label": "Mullion ctr2 Thermocouple btm",
+      "display_side": "right"
+    },
+    "T_mull.RH.top": {
+      "type": "temperature",
+      "position": [
+        1372.0,
+        1434.0
+      ],
+      "label": "Mullion RH Thermocouple top",
+      "display_side": "right"
+    },
+    "T_mull.RH.upper": {
+      "type": "temperature",
+      "position": [
+        1372.0,
+        1482.0
+      ],
+      "label": "Mullion RH Thermocouple upper",
+      "display_side": "right"
+    },
+    "T_mull.RH.ctr": {
+      "type": "temperature",
+      "position": [
+        1372.0,
+        1530.0
+      ],
+      "label": "Mullion RH Thermocouple ctr",
+      "display_side": "right"
+    },
+    "T_mull.RH.lower": {
+      "type": "temperature",
+      "position": [
+        1372.0,
+        1578.0
+      ],
+      "label": "Mullion RH Thermocouple lower",
+      "display_side": "right"
+    },
+    "T_mull.RH.btm": {
+      "type": "temperature",
+      "position": [
+        1372.0,
+        1626.0
+      ],
+      "label": "Mullion RH Thermocouple btm",
+      "display_side": "right"
+    }
+  },
+  "role_dot_labels": {},
+  "sensor_boxes": {
+    "box_ambient_walls": {
+      "position": [
+        -400.0,
+        1740
+      ],
+      "title": "Ambient & Walls",
+      "sensors": [
+        {
+          "id": "T_amb.dry.a",
+          "label": "Ambient Dry Bulb A"
+        },
+        {
+          "id": "T_amb.dry.b",
+          "label": "Ambient Dry Bulb B"
+        },
+        {
+          "id": "T_amb.wet",
+          "label": "Ambient Wet Bulb"
+        },
+        {
+          "id": "T_wall.front",
+          "label": "Front Wall Temp"
+        },
+        {
+          "id": "T_wall.rear",
+          "label": "Rear Wall Temp"
+        },
+        {
+          "id": "T_wall.left",
+          "label": "Left Wall Temp"
+        },
+        {
+          "id": "T_wall.right",
+          "label": "Right Wall Temp"
+        },
+        {
+          "id": "T_ceil",
+          "label": "Ceiling Temp"
+        },
+        {
+          "id": "T_evap_misc",
+          "label": "Misc Evap Temp"
+        }
+      ]
+    },
+    "box_electrical_system": {
+      "position": [
+        -10.0,
+        1740
+      ],
+      "title": "Case Electrical & System",
+      "sensors": [
+        {
+          "id": "W_case.total",
+          "label": "Total Case Watts"
+        },
+        {
+          "id": "A_case.total",
+          "label": "Total Case Amps"
+        },
+        {
+          "id": "V_case.total",
+          "label": "Total Case Volts"
+        },
+        {
+          "id": "W_fan.total",
+          "label": "Total Evap Fan Watts"
+        },
+        {
+          "id": "W_aswt.total",
+          "label": "Total Anti-Sweat Watts"
+        },
+        {
+          "id": "W_frame.total",
+          "label": "Total Frame Heater Watts"
+        },
+        {
+          "id": "W_comp.total",
+          "label": "Total Compressor Watts"
+        },
+        {
+          "id": "W_case",
+          "label": "Case Total Watts"
+        },
+        {
+          "id": "A_case",
+          "label": "Case Total Amps"
+        },
+        {
+          "id": "V_case",
+          "label": "Case Voltage"
+        },
+        {
+          "id": "W_fan",
+          "label": "Evap Fan Watts"
+        },
+        {
+          "id": "A_fan",
+          "label": "Evap Fan Amps"
+        },
+        {
+          "id": "W_aswt",
+          "label": "Anti-Sweat Heater Watts"
+        },
+        {
+          "id": "A_aswt",
+          "label": "Anti-Sweat Heater Amps"
+        },
+        {
+          "id": "W_frame",
+          "label": "Frame Heater Watts"
+        },
+        {
+          "id": "A_frame",
+          "label": "Frame Heater Amps"
+        },
+        {
+          "id": "t_run",
+          "label": "Run Time"
+        },
+        {
+          "id": "f_defrost",
+          "label": "Defrost Flag"
+        },
+        {
+          "id": "f_alwaysoff",
+          "label": "Always Off Flag"
+        },
+        {
+          "id": "m_dot_meas",
+          "label": "Flowmeter (Mass Flow)"
+        },
+        {
+          "id": "T_liq.main",
+          "label": "Main Liquid Line Temp"
+        }
+      ]
+    },
+    "box_unit_1_aux": {
+      "position": [
+        380.0,
+        1740
+      ],
+      "title": "Unit 1 Electrical & Aux",
+      "sensors": [
+        {
+          "id": "W_comp.u1",
+          "label": "Unit 1 Watts"
+        },
+        {
+          "id": "A_comp.u1",
+          "label": "Unit 1 Amps"
+        },
+        {
+          "id": "V_comp.u1",
+          "label": "Unit 1 Voltage"
+        },
+        {
+          "id": "T_lls.out.lh",
+          "label": "Liquid Line Solenoid Outlet"
+        },
+        {
+          "id": "T_hgs.out.lh",
+          "label": "Hot Gas Defrost Solenoid Outlet"
+        },
+        {
+          "id": "T_defrost.term.lh",
+          "label": "Defrost Termination Sensor"
+        }
+      ]
+    },
+    "box_unit_2_aux": {
+      "position": [
+        770.0,
+        1740
+      ],
+      "title": "Unit 2 Electrical & Aux",
+      "sensors": [
+        {
+          "id": "W_comp.u2",
+          "label": "Unit 2 Watts"
+        },
+        {
+          "id": "A_comp.u2",
+          "label": "Unit 2 Amps"
+        },
+        {
+          "id": "V_comp.u2",
+          "label": "Unit 2 Voltage"
+        },
+        {
+          "id": "T_lls.out.rh",
+          "label": "Liquid Line Solenoid Outlet"
+        },
+        {
+          "id": "T_hgs.out.rh",
+          "label": "Hot Gas Defrost Solenoid Outlet"
+        },
+        {
+          "id": "T_defrost.term.rh",
+          "label": "Defrost Termination Sensor"
+        }
+      ]
+    },
+    "box_unit_3_aux": {
+      "position": [
+        1160.0,
+        1740
+      ],
+      "title": "Unit 3 Electrical & Aux",
+      "sensors": [
+        {
+          "id": "W_comp.u3",
+          "label": "Unit 3 Watts"
+        },
+        {
+          "id": "A_comp.u3",
+          "label": "Unit 3 Amps"
+        },
+        {
+          "id": "V_comp.u3",
+          "label": "Unit 3 Voltage"
+        },
+        {
+          "id": "T_lls.out.ctr",
+          "label": "Liquid Line Solenoid Outlet"
+        },
+        {
+          "id": "T_hgs.out.ctr",
+          "label": "Hot Gas Defrost Solenoid Outlet"
+        },
+        {
+          "id": "T_defrost.term.ctr",
+          "label": "Defrost Termination Sensor"
+        }
+      ]
+    }
+  },
+  "_simple_mode": true,
+  "_topology": {
+    "case_family": "Insight",
+    "system_type": "cassette",
+    "mode": "cassette_lt",
+    "modules": 3,
+    "num_doors": 3,
+    "num_cassettes": 3,
+    "circuits_per_coil": 6,
+    "condenser_cooling": "Air",
+    "case_type": "Doored",
+    "shelf_rows": 6,
+    "doored": true,
+    "family": "insight",
+    "size_count": 3,
+    "open_or_doored": "Doored",
+    "temp_class": "LT",
+    "system": "cassette",
+    "cassette_count": 3,
+    "cassette_airflow": "reverse",
+    "circuits": 6,
+    "defrost_type": "hot_gas",
+    "condenser_cooling_new": "Air",
+    "shelf_width_in": 48,
+    "air_curtains": "dual",
+    "door_style": "french_pair_per_module"
+  },
+  "_generated_from": "bare_minimum (cassette_lt, count=3, 6 circuits/coil)"
+}

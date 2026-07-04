@@ -1,0 +1,35 @@
+{
+  "insight": {
+    "display": "Insight",
+    "module_pitch_in": 48,
+    "size_question": "modules",
+    "size_range": [
+      1,
+      3
+    ],
+    "door_style": "french_pair_per_module",
+    "open_allowed": true,
+    "air_curtains": "dual",
+    "shelf_width_in": 48,
+    "temp_classes": [
+      "MT"
+    ]
+  },
+  "reach_in": {
+    "display": "Reach-in",
+    "module_pitch_in": 30,
+    "size_question": "doors",
+    "size_range": [
+      1,
+      5
+    ],
+    "door_style": "one_per_pitch",
+    "open_allowed": false,
+    "air_curtains": "single",
+    "shelf_width_in": 30,
+    "temp_classes": [
+      "MT",
+      "LT"
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "id": "IDD5SL8WE",
+  "model": "IDD5SL8WE",
+  "notes": "",
+  "topology": {
+    "family": "insight",
+    "size_count": 2,
+    "open_or_doored": "Doored",
+    "temp_class": "MT",
+    "system": "shared",
+    "cassette_count": null,
+    "cassette_airflow": null,
+    "circuits": 6,
+    "defrost_type": "none",
+    "condenser_cooling": "Water",
+    "shelf_rows": 5
+  },
+  "parts": {
+    "condenser": {
+      "catalog_id": "cond_a3c79649",
+      "model": "WATER COOLED",
+      "snapshot": {
+        "model": "WATER COOLED",
+        "company_pn": "3204562",
+        "cooling_type": "Water",
+        "design_gpm": 6.0,
+        "notes": "SAMPLE"
+      }
+    }
+  },
+  "settings": {
+    "refrigerant": "R290",
+    "charge_oz": null,
+    "water_gpm": null,
+    "fan_cfm": null,
+    "defrost_schedule": "",
+    "setpoints": ""
+  },
+  "default_targets": [
+    {
+      "name": "Product temp",
+      "min": null,
+      "max": 38.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Coil superheat",
+      "min": 6.0,
+      "max": 9.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Subcooling",
+      "min": 5.0,
+      "max": 15.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Capacity",
+      "min": null,
+      "max": null,
+      "unit": "BTU/hr"
+    },
+    {
+      "name": "DOE energy",
+      "min": null,
+      "max": null,
+      "unit": "kWh/day"
+    }
+  ],
+  "created_by": "silam",
+  "created_at": "2026-07-02T23:10:23",
+  "updated_at": "2026-07-02T23:10:57",
+  "last_used": "2026-07-02T23:10:57"
+}

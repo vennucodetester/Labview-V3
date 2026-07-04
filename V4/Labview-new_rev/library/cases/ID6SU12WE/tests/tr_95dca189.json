@@ -1,0 +1,51 @@
+{
+  "id": "tr_95dca189",
+  "request_no": "TR-2026-004",
+  "case_id": "ID6SU12WE",
+  "legacy_project_id": "proj_9fd37d32",
+  "elp_code": "PERF",
+  "title": "",
+  "objective": "",
+  "targets": [
+    {
+      "name": "Product temp",
+      "min": null,
+      "max": 38.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Coil superheat",
+      "min": 6.0,
+      "max": 9.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Subcooling",
+      "min": 5.0,
+      "max": 15.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Capacity",
+      "min": null,
+      "max": null,
+      "unit": "BTU/hr"
+    },
+    {
+      "name": "DOE energy",
+      "min": null,
+      "max": null,
+      "unit": "kWh/day"
+    }
+  ],
+  "revisions": [
+    {
+      "rev": "A",
+      "at": "2026-06-14T12:05:54",
+      "by": "silam",
+      "note": "Initial release"
+    }
+  ],
+  "created_by": "silam",
+  "created_at": "2026-06-14T12:05:54"
+}

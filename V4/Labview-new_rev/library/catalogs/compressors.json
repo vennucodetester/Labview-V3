@@ -1,0 +1,13 @@
+[
+  {
+    "id": "comp_9ebd7f57",
+    "model": "SCROLL VARIABLE SPEED",
+    "rated_speed_rpm": 5000.0,
+    "rated_mdot_lbhr": 20.0,
+    "rated_evap_temp_f": -5.0,
+    "rated_return_gas_temp_f": 20.0,
+    "notes": "JUST A SAMMPLE",
+    "created_by": "silam",
+    "created_at": "2026-06-11T21:21:04"
+  }
+]
