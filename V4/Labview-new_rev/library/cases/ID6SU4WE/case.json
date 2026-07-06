@@ -1,0 +1,64 @@
+{
+  "id": "ID6SU4WE",
+  "model": "ID6SU4WE",
+  "notes": "",
+  "topology": {
+    "family": "insight",
+    "size_count": 1,
+    "open_or_doored": "Open",
+    "temp_class": "MT",
+    "system": "shared",
+    "cassette_count": null,
+    "cassette_airflow": null,
+    "circuits": 6,
+    "expansion_device": "txv",
+    "defrost_type": "off_time",
+    "condenser_cooling": "Water",
+    "shelf_rows": 6
+  },
+  "parts": {},
+  "settings": {
+    "refrigerant": "R290",
+    "charge_oz": null,
+    "water_gpm": null,
+    "fan_cfm": null,
+    "defrost_schedule": "",
+    "setpoints": ""
+  },
+  "default_targets": [
+    {
+      "name": "Product temp",
+      "min": null,
+      "max": 38.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Coil superheat",
+      "min": 6.0,
+      "max": 9.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Subcooling",
+      "min": 5.0,
+      "max": 15.0,
+      "unit": "°F"
+    },
+    {
+      "name": "Capacity",
+      "min": null,
+      "max": null,
+      "unit": "BTU/hr"
+    },
+    {
+      "name": "DOE energy",
+      "min": null,
+      "max": null,
+      "unit": "kWh/day"
+    }
+  ],
+  "created_by": "silam",
+  "created_at": "2026-07-04T10:00:41",
+  "updated_at": "2026-07-04T10:00:41",
+  "last_used": null
+}

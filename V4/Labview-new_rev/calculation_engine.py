@@ -29,6 +29,29 @@ def psig_to_pa(pressure_psig: float) -> float:
     return (pressure_psig + 14.7) * 6894.76
 
 
+def safe_tp_property(prop: str, temp_k: float, pressure_pa: float,
+                     refrigerant: str, saturated_quality: Optional[float] = None) -> float:
+    """Return a CoolProp T/P property, falling back at the saturation boundary.
+
+    CoolProp intentionally rejects T/P flashes that land exactly on the
+    saturation curve because the phase is ambiguous. In this app the state
+    point gives the missing phase: suction/evap points use Q=1 vapor, liquid
+    line points use Q=0 liquid.
+    """
+    try:
+        return CP.PropsSI(prop, 'T', temp_k, 'P', pressure_pa, refrigerant)
+    except Exception:
+        if saturated_quality is None:
+            raise
+        try:
+            p_sat = CP.PropsSI('P', 'T', temp_k, 'Q', saturated_quality, refrigerant)
+            if abs(p_sat - pressure_pa) <= max(25.0, abs(pressure_pa) * 1e-5):
+                return CP.PropsSI(prop, 'P', pressure_pa, 'Q', saturated_quality, refrigerant)
+        except Exception:
+            pass
+        raise
+
+
 # =========================================================================
 # NEW UNIFIED CALCULATION ENGINE (from goal.md)
 # Implements the two-step calculation process from Calculations-DDT.txt
@@ -118,7 +141,7 @@ def calculate_volumetric_efficiency(rated_inputs: Dict, refrigerant: str = 'R290
 
         # Get density at rated return gas temperature and saturation pressure
         rated_return_k = f_to_k(rated_return_f)
-        dens_rated_kg_m3 = CP.PropsSI('D', 'T', rated_return_k, 'P', P_rated_sat, refrigerant)
+        dens_rated_kg_m3 = safe_tp_property('D', rated_return_k, P_rated_sat, refrigerant, saturated_quality=1)
         dens_rated_lb_ft3 = dens_rated_kg_m3 * 0.062428  # Convert to lb/ft³
 
         # Calculate RPH (revolutions per hour)
@@ -242,6 +265,8 @@ def calculate_row_performance(
         h_2a_by_label: dict = {}
         h_4b_by_label: dict = {}
 
+        sh_tolerance_f = float(comp_specs.get('sh_crosscheck_tolerance_f', 0.75) or 0.75)
+
         for label in module_labels:
             ab    = module_abbrev(label)          # 'lh' / 'ctr' / 'rh'
             ab_up = module_abbrev(label, upper=True)  # 'LH' / 'CTR' / 'RH'
@@ -258,6 +283,9 @@ def calculate_row_performance(
             t_2a_f = get_val(f'_avg_{t2a_key}') if f'_avg_{t2a_key}' in sensor_map \
                      else get_val(t2a_key)
             t_4b_f = get_val(t4b_key)
+            lab_sh_f = get_val(f'_lab_SH_{ab}')
+            if lab_sh_f is not None:
+                results[f'S.H_{ab} lab'] = lab_sh_f
 
             # Store raw temperatures
             if t_1a_f is not None:
@@ -271,9 +299,9 @@ def calculate_row_performance(
             h_2a = None
             if t_2a_f is not None:
                 t_2a_k = f_to_k(t_2a_f)
-                h_2a   = CP.PropsSI('H', 'T', t_2a_k, 'P', p_suc_pa, refrigerant)
-                s_2a   = CP.PropsSI('S', 'T', t_2a_k, 'P', p_suc_pa, refrigerant)
-                d_2a   = CP.PropsSI('D', 'T', t_2a_k, 'P', p_suc_pa, refrigerant)
+                h_2a   = safe_tp_property('H', t_2a_k, p_suc_pa, refrigerant, saturated_quality=1)
+                s_2a   = safe_tp_property('S', t_2a_k, p_suc_pa, refrigerant, saturated_quality=1)
+                d_2a   = safe_tp_property('D', t_2a_k, p_suc_pa, refrigerant, saturated_quality=1)
                 sh     = t_2a_k - t_sat_suc_k
 
                 results[f'T_sat.{ab}']    = k_to_f(t_sat_suc_k)
@@ -281,6 +309,14 @@ def calculate_row_performance(
                 results[f'D_coil {ab}']   = d_2a
                 results[f'H_coil {ab}']   = h_2a / 1000.0
                 results[f'S_coil {ab}']   = s_2a / 1000.0
+                if lab_sh_f is not None:
+                    delta = results[f'S.H_{ab} coil'] - lab_sh_f
+                    results[f'S.H_{ab} delta'] = delta
+                    results[f'S.H_{ab} check'] = (
+                        'OK' if abs(delta) <= sh_tolerance_f else 'CHECK'
+                    )
+            elif lab_sh_f is not None:
+                results[f'S.H_{ab} check'] = 'NO COMPUTED'
             h_2a_by_label[label] = h_2a
 
             # ── TXV inlet thermodynamics ─────────────────────────────────────
@@ -288,7 +324,7 @@ def calculate_row_performance(
             if t_4b_f is not None:
                 results[t4b_key] = t_4b_f
                 t_4b_k = f_to_k(t_4b_f)
-                h_4b   = CP.PropsSI('H', 'T', t_4b_k, 'P', p_disch_pa, refrigerant)
+                h_4b   = safe_tp_property('H', t_4b_k, p_disch_pa, refrigerant, saturated_quality=0)
                 subcool = t_sat_disch_k - t_4b_k
 
                 results[f'T_sat.txv.{ab}'] = k_to_f(t_sat_disch_k)
@@ -317,9 +353,9 @@ def calculate_row_performance(
         if t_2b_f is not None:
             results['T_2b'] = t_2b_f
             t_2b_k = f_to_k(t_2b_f)
-            h_2b   = CP.PropsSI('H', 'T', t_2b_k, 'P', p_suc_pa, refrigerant)
-            s_2b   = CP.PropsSI('S', 'T', t_2b_k, 'P', p_suc_pa, refrigerant)
-            rho_2b = CP.PropsSI('D', 'T', t_2b_k, 'P', p_suc_pa, refrigerant)
+            h_2b   = safe_tp_property('H', t_2b_k, p_suc_pa, refrigerant, saturated_quality=1)
+            s_2b   = safe_tp_property('S', t_2b_k, p_suc_pa, refrigerant, saturated_quality=1)
+            rho_2b = safe_tp_property('D', t_2b_k, p_suc_pa, refrigerant, saturated_quality=1)
             sh_total = t_2b_k - t_sat_suc_k
 
             results['T_sat.comp.in'] = k_to_f(t_sat_suc_k)
@@ -332,20 +368,21 @@ def calculate_row_performance(
         if t_3a_f is not None:
             results['T_3a'] = t_3a_f
             t_3a_k = f_to_k(t_3a_f)
-            h_3a   = CP.PropsSI('H', 'T', t_3a_k, 'P', p_disch_pa, refrigerant)
+            h_3a   = safe_tp_property('H', t_3a_k, p_disch_pa, refrigerant, saturated_quality=1)
+            results['D.S.H'] = (t_3a_k - t_sat_disch_k) * 9.0 / 5.0
 
         # ── 5. CONDENSER ─────────────────────────────────────────────────────
         if t_3b_f is not None:
             results['T_3b'] = t_3b_f
             t_3b_k = f_to_k(t_3b_f)
-            h_3b   = CP.PropsSI('H', 'T', t_3b_k, 'P', p_disch_pa, refrigerant)
+            h_3b   = safe_tp_property('H', t_3b_k, p_disch_pa, refrigerant, saturated_quality=1)
 
         results['P_disch'] = p_disch_psig
 
         if t_4a_f is not None:
             results['T_4a'] = t_4a_f
             t_4a_k = f_to_k(t_4a_f)
-            h_4a   = CP.PropsSI('H', 'T', t_4a_k, 'P', p_disch_pa, refrigerant)
+            h_4a   = safe_tp_property('H', t_4a_k, p_disch_pa, refrigerant, saturated_quality=0)
             subcool_cond = t_sat_disch_k - t_4a_k
             results['T_sat.cond'] = k_to_f(t_sat_disch_k)
             results['S.C']        = subcool_cond * 9.0 / 5.0

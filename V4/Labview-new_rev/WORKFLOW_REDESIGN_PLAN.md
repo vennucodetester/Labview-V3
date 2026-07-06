@@ -177,6 +177,11 @@ Step 6  Circuits
           Shared + Reach-in  → "Total circuits"                    1–12, default 6
           Cassettes          → "Circuits per cassette"             1–12, default 6
                 │
+Step 6b Expansion device            TXV | Cap Tube | EEV   (default TXV)
+          (one choice per case; applies to every module/cassette loop.
+           Drives which component is drawn, whether a sensing bulb exists,
+           and which sensor slots are generated — see §6.11)
+                │
 Step 7  Defrost type       none | off_time | electric | hot_gas | cool_gas
           (asked for EVERY case regardless of temp class — usually LT has one,
            but some MT cases do too. hot_gas / cool_gas add defrost valve
@@ -209,7 +214,8 @@ four counts are saved with stale values):
 ```
 { family, size_count, open_or_doored, temp_class,
   system: shared|cassette, cassette_count?, cassette_airflow?,
-  circuits, defrost_type, condenser_cooling, shelf_rows }
+  circuits, expansion_device: txv|cap_tube|eev,
+  defrost_type, condenser_cooling, shelf_rows }
 ```
 
 This replaces today's `mode` / `cassette_mt` / `cassette_lt` distinction:
@@ -292,6 +298,32 @@ Fix these known wrong-decision sources:
    serializer, so undo automatically carries them. Acceptance: open case →
    change refrigerant → save → reload → both survive; Ctrl+Z never drops the
    case link.
+10b. **Expansion device drives components and sensors (owner addition
+    2026-07-03).** The Step-6b choice applies to every expansion circuit
+    (each module of a shared system, each cassette loop):
+    - **TXV** → TXV component per circuit + **sensing-bulb dot on the
+      suction line at that circuit's evaporator outlet** (canonical
+      `T_txv.{tag}.bulb`) + TXV-inlet temp slot + TXV subcooling callout.
+    - **Cap Tube** → CapTube component (drawn in the same position) —
+      **NO bulb dot anywhere, and no bulb role/canonical is enumerated**
+      for the case. Liquid-line inlet temp slot and subcooling callout
+      remain (they measure the liquid line, not the valve).
+    - **EEV** → EEV component — no mechanical bulb; instead an
+      **EEV suction-temp probe dot** at the same suction-line location
+      (canonical `T_eev.{tag}.suction`), plus an optional instrument slot
+      for the EEV control signal (`eev_pos.{tag}`, "EEV Position %") on the
+      System & Flags card, since electronically controlled valves usually
+      log it.
+    Changing a case's expansion device later regenerates these slots; any
+    sensor previously mapped to a slot that no longer exists (e.g., bulb
+    columns after switching to cap tube) must surface in the Mapping
+    report as a conflict — never silently dropped.
+    Parts catalog: the `txv` part type generalizes to an **expansion
+    device** part with a kind field (txv / cap_tube / eev) and
+    kind-specific spec fields (TXV: nominal tons, refrigerant; cap tube:
+    bore/length; EEV: model, steps/max opening). Cross-check (§6.7): part
+    kind must match Step-6b, warn on mismatch.
+
 10. **Old-schema readers inside data_manager (gap found in review).**
     `data_manager.py:1900` reads `_topology.mode`; `:2183–2191` derives the
     sensor-point-defaults key from `circuits_per_coil` + per-mode counts.

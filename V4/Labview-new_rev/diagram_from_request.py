@@ -27,10 +27,19 @@ from typing import Dict, List
 
 TEMPLATES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
 
+DIAGRAM_GENERATOR_VERSION = 10
+
 # Which circuit labels survive for a given module count (house convention:
 # 2-module = Left + Right, per CLAUDE.md column configs)
 _LABELS_FOR_COUNT = {1: ['Left'], 2: ['Left', 'Right'],
                      3: ['Left', 'Center', 'Right']}
+
+
+def _stamp_generated_diagram(model: dict) -> dict:
+    """Mark generated diagrams so saved cases can be refreshed when layout changes."""
+    if isinstance(model, dict):
+        model['_generator_version'] = DIAGRAM_GENERATOR_VERSION
+    return model
 
 
 def _load_template(name: str) -> dict:
@@ -164,7 +173,7 @@ def build_shared_from_template(topology: dict) -> dict:
     model['custom_sensors'] = {}
     model['role_dot_labels'] = {}
     model['_generated_from'] = f"{src_file} (reduced to {modules} module(s))"
-    return model
+    return _stamp_generated_diagram(model)
 
 
 def _template_index() -> dict:
@@ -222,6 +231,7 @@ def build_diagram_for_request(request: dict) -> dict:
     no template with the right module count exists.
     """
     topo = request.get('topology', {}) or {}
+    return build_bare_minimum_diagram({'topology': topo})
     want_mod = max(1, int(topo.get('modules', 1) or 1))
 
     meta = _pick_template(topo)
@@ -238,7 +248,7 @@ def build_diagram_for_request(request: dict) -> dict:
             'air_curtain_type': 'single', 'shelf_rows': 4,
         })
         model['_generated_from'] = 'procedural fallback (no template)'
-        return model
+        return _stamp_generated_diagram(model)
 
     if meta.get('modules') == want_mod or meta.get('system_type') == 'cassette':
         model = copy.deepcopy(_load_template(meta['file']))
@@ -248,7 +258,7 @@ def build_diagram_for_request(request: dict) -> dict:
                                     f"(source {meta.get('source')})")
         print(f"[DIAGRAM GEN] Used template {meta['file']} "
               f"(exact module match, source {meta.get('source')})")
-        return model
+        return _stamp_generated_diagram(model)
 
     # Module-count mismatch on a shared system: surgical reduction of the
     # 3-module reference (only path that needs surgery)
@@ -256,7 +266,7 @@ def build_diagram_for_request(request: dict) -> dict:
           f"reducing the 3-module reference")
     model = build_shared_from_template(topo)
     _ensure_canonical_sensor_boxes(model, topo)
-    return model
+    return _stamp_generated_diagram(model)
 
 
 def _ensure_canonical_sensor_boxes(model: dict, topo: dict, anchor_y: float | None = None,
@@ -323,8 +333,27 @@ def _ensure_canonical_sensor_boxes(model: dict, topo: dict, anchor_y: float | No
         ('f_defrost',    'Defrost Flag'),
         ('f_alwaysoff',  'Always Off Flag'),
         ('m_dot_meas',   'Flowmeter (Mass Flow)'),
+        ('qc',           'BTU'),
+        ('m_dot',        'Total Flow'),
+        ('T_prod.avg',   'AVG Product Temp'),
         ('T_liq.main',   'Main Liquid Line Temp'),
     ]
+    expansion_device = str((topo or {}).get('expansion_device') or (topo or {}).get('expansion_type') or '').lower()
+    if expansion_device in ('eev', 'electronic expansion valve'):
+        label_to_tag = {'left': 'lh', 'lh': 'lh', 'center': 'ctr', 'ctr': 'ctr', 'right': 'rh', 'rh': 'rh'}
+        eev_tags = []
+        for comp in (model.get('components') or {}).values():
+            props = comp.get('properties') or {}
+            if comp.get('type') not in ('TXV', 'EEV') or props.get('expansion_device_type') != 'EEV':
+                continue
+            label = str(props.get('circuit_label') or '').strip()
+            tag = label_to_tag.get(label.lower(), label.lower())
+            if not tag or tag == 'none':
+                tag = f'u{len(eev_tags) + 1}'
+            if tag not in eev_tags:
+                eev_tags.append(tag)
+        for tag in eev_tags:
+            case_slots.append((f'eev_pos.{tag}', f'{tag.upper()} EEV Position %'))
 
     if 'box_electrical_system' not in boxes:
         boxes['box_electrical_system'] = {
@@ -356,9 +385,9 @@ def _ensure_canonical_sensor_boxes(model: dict, topo: dict, anchor_y: float | No
                     {'id': f'W_comp.u{u}', 'label': f'Unit {u} Watts'},
                     {'id': f'A_comp.u{u}', 'label': f'Unit {u} Amps'},
                     {'id': f'V_comp.u{u}', 'label': f'Unit {u} Voltage'},
-                    {'id': f'T_lls.out.{tag}', 'label': 'Liquid Line Solenoid Outlet'},
-                    {'id': f'T_hgs.out.{tag}', 'label': 'Hot Gas Defrost Solenoid Outlet'},
-                    {'id': f'T_defrost.term.{tag}', 'label': 'Defrost Termination Sensor'},
+                    {'id': f'T_lls.out.{tag}', 'label': f'Liquid Line Solenoid Outlet ({tag.upper()})'},
+                    {'id': f'T_hgs.out.{tag}', 'label': f'Hot Gas Defrost Solenoid Outlet ({tag.upper()})'},
+                    {'id': f'T_defrost.term.{tag}', 'label': f'Defrost Termination Sensor ({tag.upper()})'},
                 ],
             }
 
@@ -390,6 +419,14 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     condenser_type = ('Water Cooled'
                       if str(topo.get('condenser_cooling', 'Water')).lower().startswith('w')
                       else 'Air Cooled')
+    expansion_device = str(topo.get('expansion_device') or topo.get('expansion_type') or 'txv').lower()
+    expansion_device = expansion_device.replace(' ', '_').replace('-', '_')
+    if expansion_device in ('cap', 'captube', 'capillary', 'capillary_tube'):
+        expansion_device = 'cap_tube'
+    if expansion_device not in ('txv', 'cap_tube', 'eev'):
+        expansion_device = 'txv'
+    expansion_label = {'txv': 'TXV', 'cap_tube': 'Cap Tube', 'eev': 'EEV'}[expansion_device]
+    expansion_component_type = {'txv': 'TXV', 'cap_tube': 'CapTube', 'eev': 'EEV'}[expansion_device]
     is_cassette = mode.startswith('cassette')
     reverse_cassette_airflow = (
         is_cassette and str(topo.get('cassette_airflow', 'reverse')).lower().startswith('reverse')
@@ -407,15 +444,15 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     DIST_H  = 40
     HEAD_H  = 40
 
-    Y_COMP     = 100
-    Y_COND     = 190
-    Y_TXV      = 350
-    Y_EVAP     = 495
-    BRANCH_Y   = Y_COND + COND_H + 30    # 280
-    DIST_Y     = Y_EVAP - DIST_H - 15    # 440
-    HEAD_Y     = Y_EVAP + EVAP_H         # 575
-    HEAD_OUT_Y = HEAD_Y + HEAD_H          # 615
-    MERGE_Y    = Y_EVAP + EVAP_H + 85    # 660
+    Y_COMP     = 130
+    Y_COND     = 285
+    Y_TXV      = 430
+    Y_EVAP     = 585
+    BRANCH_Y   = Y_COND + COND_H + 65
+    DIST_Y     = Y_EVAP - DIST_H - 15
+    HEAD_Y     = Y_EVAP + EVAP_H
+    HEAD_OUT_Y = HEAD_Y + HEAD_H
+    MERGE_Y    = Y_EVAP + EVAP_H + 95
 
     # ── Module layout (modular mode) ─────────────────────────────────────
     num_modules = max(1, min(3, int(topo.get('modules', 1) or 1)))
@@ -452,6 +489,12 @@ def build_bare_minimum_diagram(request: dict) -> dict:
 
     components: dict = {}
     pipes:      dict = {}
+
+    def expansion_props(circuit_label):
+        props = {'circuit_label': circuit_label, 'expansion_device_type': expansion_label}
+        if expansion_device == 'txv':
+            props['show_bulb_port'] = False
+        return props
 
     # ══════════════════════════════════════════════════════════════════════
     #  NON-CASSETTE: Modular / Door — one shared compressor + condenser
@@ -506,10 +549,10 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             evap_id = f'{pfx}evap'; head_id  = f'{pfx}head'
 
             components[txv_id] = {
-                'type': 'TXV',
+                'type': expansion_component_type,
                 'position': [mod_x - TXV_W // 2, Y_TXV],
                 'size': {'width': TXV_W, 'height': TXV_H},
-                'properties': {'circuit_label': cl},
+                'properties': expansion_props(cl),
             }
             components[dist_id] = {
                 'type': 'SplitterManifold',
@@ -605,7 +648,7 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             }
 
         # Overall boundary
-        proc_y = Y_COMP - 50
+        proc_y = Y_COMP - 90
         components['bnd_process'] = {
             'type': 'Boundary',
             'position': [process_x, proc_y],
@@ -657,10 +700,10 @@ def build_bare_minimum_diagram(request: dict) -> dict:
                     'properties': {'circuit_label': cl, 'condenser_type': condenser_type},
                 }
                 components[f'{pfx}txv'] = {
-                    'type': 'TXV',
+                    'type': expansion_component_type,
                     'position': [cx - TXV_W // 2, Y_TXV],
                     'size': {'width': TXV_W, 'height': TXV_H},
-                    'properties': {'circuit_label': cl},
+                    'properties': expansion_props(cl),
                 }
                 components[f'{pfx}dist'] = {
                     'type': 'SplitterManifold',
@@ -771,10 +814,10 @@ def build_bare_minimum_diagram(request: dict) -> dict:
                 }
                 # TXV
                 components[f'{pfx}txv'] = {
-                    'type': 'TXV',
+                    'type': expansion_component_type,
                     'position': [main_x - TXV_W // 2, Y_TXV],
                     'size': {'width': TXV_W, 'height': TXV_H},
-                    'properties': {'circuit_label': cl},
+                    'properties': expansion_props(cl),
                 }
                 # Distributor / evap / header use the requested circuit count.
                 components[f'{pfx}dist'] = {
@@ -901,12 +944,13 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     # ══════════════════════════════════════════════════════════════════════
     #  AIRFLOW DIAGRAM  (matching test_loop.py ordering)
     # ══════════════════════════════════════════════════════════════════════
-    base_y   = MERGE_Y + 100
+    base_y   = MERGE_Y + 140
     fan_size = 60
     # Vertical clearance between an airflow band and the fan box.  Fan
     # inlet/outlet sensor dots sit 14px outside the fan rectangle, so we
     # need at least ~30px so those dots don't land inside the colored band.
-    fan_gap  = 35
+    fan_gap  = 65
+    band_gap = 45
     band_h   = 30
 
     if is_cassette and reverse_cassette_airflow:
@@ -938,7 +982,7 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             'properties': {'bg_color': '#B3E5FC', 'label': 'Primary Discharge Air'},
         }
         if mode == 'modular':
-            sec_air_y = pri_air_y + band_h + 10
+            sec_air_y = pri_air_y + band_h + band_gap
             components['deco_sec_air'] = {
                 'type': 'DecorativeRect',
                 'position': [left_edge, sec_air_y],
@@ -1081,7 +1125,7 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     # test_loop.py: airflow dots live on airflow bands, product dots live at
     # one physical shelf-grid corner, and doors/mullions/fans get their own
     # visible anchors.
-    from sensor_canonical import shelf_row_name, shelf_column_name
+    from sensor_canonical import _humanize_distance, shelf_row_name
     sensor_dots = {}
     total_cols = count + 1   # one vertical edge per shelf column boundary
 
@@ -1104,16 +1148,16 @@ def build_bare_minimum_diagram(request: dict) -> dict:
                 lb = cas_lbs[i] if i < len(cas_lbs) else f'U{i + 1}'
                 tag = label_to_tag.get(str(lb).upper(), str(lb).lower() if lb else f'u{i + 1}')
                 add_sensor_dot(
-                    f'calc.SH.{tag}', cx + cas_evap_w / 2, Y_EVAP + EVAP_H / 2,
+                    f'calc.SH.{tag}', cx, HEAD_OUT_Y,
                     f'{tag.upper()} Coil Superheat', 'calculation',
-                    calc_key=f'S.H_{tag} coil', display_side='right')
+                    calc_key=f'S.H_{tag} coil', display_side='below')
                 add_sensor_dot(
                     f'calc.SH_total.{tag}', cx - COMP_W / 2, Y_COMP + COMP_H / 2,
                     f'{tag.upper()} Compressor Superheat', 'calculation',
                     calc_key=f'S.H_total-{tag}', display_side='left')
                 add_sensor_dot(
                     f'calc.SC_txv.{tag}', cx - TXV_W / 2, Y_TXV + TXV_H / 2,
-                    f'{tag.upper()} TXV Subcooling', 'calculation',
+                    f'{tag.upper()} {expansion_label} Subcooling', 'calculation',
                     calc_key=f'S.C-txv.{tag}', display_side='left')
                 add_sensor_dot(
                     f'calc.SC_cond.{tag}', cx + COND_W / 2, Y_COND + COND_H - 16,
@@ -1125,12 +1169,12 @@ def build_bare_minimum_diagram(request: dict) -> dict:
         for mx, lb in zip(mod_xs, mod_lbs):
             tag = tag_map.get(lb, lb.lower() if lb else 'lh')
             add_sensor_dot(
-                f'calc.SH.{tag}', mx + mod_evap_w / 2, Y_EVAP + EVAP_H / 2,
+                f'calc.SH.{tag}', mx, HEAD_OUT_Y,
                 f'{lb} Coil Superheat', 'calculation',
-                calc_key=f'S.H_{tag} coil', display_side='right')
+                calc_key=f'S.H_{tag} coil', display_side='below')
             add_sensor_dot(
                 f'calc.SC_txv.{tag}', mx - TXV_W / 2, Y_TXV + TXV_H / 2,
-                f'{lb} TXV Subcooling', 'calculation',
+                f'{lb} {expansion_label} Subcooling', 'calculation',
                 calc_key=f'S.C-txv.{tag}', display_side='left')
         add_sensor_dot(
             'calc.SH_total', CENTER_X - COMP_W / 2, Y_COMP + COMP_H / 2,
@@ -1149,6 +1193,37 @@ def build_bare_minimum_diagram(request: dict) -> dict:
 
     add_calc_callouts()
 
+    def add_expansion_suction_probes():
+        if expansion_device not in ('txv', 'eev'):
+            return
+        if is_cassette:
+            label_to_tag = {'LH': 'lh', 'CTR': 'ctr', 'RH': 'rh'}
+            for i, cx in enumerate(cas_xs):
+                lb = cas_lbs[i] if i < len(cas_lbs) else f'U{i + 1}'
+                tag = label_to_tag.get(str(lb).upper(), str(lb).lower() if lb else f'u{i + 1}')
+                canonical = f'T_eev.{tag}.suction' if expansion_device == 'eev' else f'T_txv.{tag}.bulb'
+                label = f'{tag.upper()} EEV Suction Temp' if expansion_device == 'eev' else f'{tag.upper()} TXV Bulb Temp'
+                add_sensor_dot(
+                    canonical,
+                    cx,
+                    HEAD_OUT_Y,
+                    label,
+                    display_side='below')
+            return
+        tag_map = {'Left': 'lh', 'Center': 'ctr', 'Right': 'rh'}
+        for mx, lb in zip(mod_xs, mod_lbs):
+            tag = tag_map.get(lb, lb.lower() if lb else 'lh')
+            canonical = f'T_eev.{tag}.suction' if expansion_device == 'eev' else f'T_txv.{tag}.bulb'
+            label = f'{lb} EEV Suction Temp' if expansion_device == 'eev' else f'{lb} TXV Bulb Temp'
+            add_sensor_dot(
+                canonical,
+                mx,
+                HEAD_OUT_Y,
+                label,
+                display_side='below')
+
+    add_expansion_suction_probes()
+
     def edge_x_for(v):
         if mode == 'modular':
             if v < count:
@@ -1156,34 +1231,48 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             return col_xs[-1] + col_w
         return left_edge + v * col_w
 
-    # Air-curtain CSVs commonly use a denser left-to-right sensor pattern than
-    # the physical shelf-column boundaries.  Generate the historical superset
-    # (s1..s11) so existing data can map; unused dots simply stay grey.
-    air_samples = [
-        (1, '2in LE'), (2, '12in LE'), (3, '24in LE'),
-        (4, '42in LE'), (5, '54in LE'), (6, 'Center'),
-        (7, '54in RE'), (8, '42in RE'), (9, '24in RE'),
-        (10, '12in RE'), (11, '2in RE'),
+    shelf_width_in = int(topo.get('shelf_width_in') or (48 if mode == 'modular' else 30))
+    total_shelf_in = count * shelf_width_in
+
+    # Air-curtain CSVs use physical distances from the left/right end.  Only
+    # render distances that fit this case width so 4-foot cases do not show
+    # 42in/54in points squeezed into the wrong-looking positions.
+    historical_samples = [
+        (1, '2in LE', 2), (2, '12in LE', 12), (3, '24in LE', 24),
+        (4, '42in LE', 42), (5, '54in LE', 54),
     ]
+    air_samples = [
+        (idx, label, inches)
+        for idx, label, inches in historical_samples
+        if inches < total_shelf_in / 2
+    ]
+    air_samples.append((6, 'Center', total_shelf_in / 2))
+    air_samples.extend(
+        (12 - idx, label.replace('LE', 'RE'), total_shelf_in - inches)
+        for idx, label, inches in reversed(historical_samples)
+        if inches < total_shelf_in / 2
+    )
 
-    def air_x_for(idx):
-        if len(air_samples) <= 1:
+    def air_x_for(inches_from_left):
+        if total_shelf_in <= 0:
             return left_edge + combined_w / 2
-        return left_edge + combined_w * ((idx - 1) / (len(air_samples) - 1))
+        return left_edge + combined_w * (inches_from_left / total_shelf_in)
 
-    for idx, air_h in air_samples:
-        edge_x = air_x_for(idx)
+    for idx, air_h, inches_from_left in air_samples:
+        edge_x = air_x_for(inches_from_left)
         side = 'right' if idx == 1 else 'left' if idx == 11 else ('above' if idx % 2 else 'below')
         add_sensor_dot(f'T_air.disc.s{idx}', edge_x, pri_air_y + 15,
                        f'Primary Discharge Air - {air_h}',
                        display_side=side)
         if mode == 'modular':
-            add_sensor_dot(f'T_air.sec.s{idx}', edge_x, base_y + 40 + 15,
+            sec_side = 'above' if side == 'below' else side
+            add_sensor_dot(f'T_air.sec.s{idx}', edge_x, sec_air_y + 15,
                            f'Secondary Discharge Air - {air_h}',
-                           display_side=side)
+                           display_side=sec_side)
+        ret_side = 'above' if side == 'below' else side
         add_sensor_dot(f'T_air.ret.s{idx}', edge_x, ret_air_y + 15,
                        f'Return Air - {air_h}',
-                       display_side=side)
+                       display_side=ret_side)
 
     # Core rule (user-defined):
     #   - 1 column of shelf per module / door / cassette (= `count`).
@@ -1196,8 +1285,6 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     #     (bottom edge) — those are NOT collapsed, since rear-of-upper
     #     and front-of-lower are physically different points on the case
     #     (the shelf has depth).
-    shelf_width_in = int(topo.get('shelf_width_in') or (48 if mode == 'modular' else 32))
-    total_shelf_in = count * shelf_width_in
     product_cols = {}
 
     def add_product_col(col_id: str, inches_from_left: float):
@@ -1206,7 +1293,7 @@ def build_bare_minimum_diagram(request: dict) -> dict:
         frac = inches_from_left / total_shelf_in if total_shelf_in else 0
         product_cols[col_id] = (
             left_edge + combined_w * frac,
-            shelf_column_name(0, 1, [col_id])[1],
+            _humanize_distance(col_id),
         )
 
     # Product-sim CSV labels are physical distances from the left or right
@@ -1224,8 +1311,6 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             add_product_col(f'RE{int(total_shelf_in - inches)}', inches)
 
     for col_id, (edge_x, col_h) in product_cols.items():
-        side_rear = 'left' if col_id == 'RE' else 'right' if col_id == 'LE' else 'above'
-        side_front = 'left' if col_id == 'RE' else 'right' if col_id == 'LE' else 'below'
         for r in range(shelf_rows):
             row_id, row_h = shelf_row_name(r, shelf_rows)
             top_y    = shelf_base_y + r * shelf_pitch          # rear edge of this shelf
@@ -1233,11 +1318,11 @@ def build_bare_minimum_diagram(request: dict) -> dict:
             add_sensor_dot(f"T_prod.{row_id}.{col_id}.r",
                            edge_x, top_y,
                            f"Product Sim - {row_h} Shelf - {col_h} - Rear",
-                           display_side=side_rear)
+                           display_side='above')
             add_sensor_dot(f"T_prod.{row_id}.{col_id}.f",
                            edge_x, bottom_y,
                            f"Product Sim - {row_h} Shelf - {col_h} - Front",
-                           display_side=side_front)
+                           display_side='below')
 
     # Fan air thermocouples, anchored to the fan boxes.
     if mode == 'modular':
@@ -1487,4 +1572,4 @@ def build_bare_minimum_diagram(request: dict) -> dict:
     # Add canonical sensor boxes so off-diagram instruments (ambient temps,
     # wall temps, compressor electrical) always have a home.
     _ensure_canonical_sensor_boxes(model, topo)
-    return model
+    return _stamp_generated_diagram(model)

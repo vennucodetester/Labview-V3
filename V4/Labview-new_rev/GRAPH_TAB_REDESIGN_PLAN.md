@@ -68,7 +68,7 @@ on the graph toolbar.**
 |---|---|
 | **Scroll wheel over the Y-axis strip** | Dynamic Y zoom, anchored at the cursor's value — the owner's headline request. Zoom in/out smoothly as you scroll; X untouched. |
 | Scroll wheel over the X-axis strip | Dynamic X (time) zoom anchored at cursor; Y untouched. |
-| Scroll wheel inside the plot | X (time) zoom anchored at cursor. Shift+scroll = Y zoom. |
+| Scroll wheel inside the plot | **BOTH axes zoom together**, anchored at cursor (owner revision 2026-07-03 — supersedes the earlier X-only spec). Shift+scroll = Y only; Ctrl+scroll = X only. |
 | Left-drag inside the plot | Pan. |
 | Right-drag (or hold B + drag) | Box zoom. |
 | Double-click plot | Fit everything (X and Y). |

@@ -54,8 +54,12 @@ PART_FIELD_DEFS: Dict[str, List[tuple]] = {
     ],
     'txv': [
         ('company_pn',        'Company part number (optional)', 'text'),
+        ('kind',              'Expansion device kind',          ('choice', ['txv', 'cap_tube', 'eev'])),
         ('nominal_tons',      'Nominal capacity (tons)',        'float'),
         ('rated_refrigerant', 'Rated refrigerant',              'text'),
+        ('cap_tube_bore_in',  'Cap tube bore (in)',             'float'),
+        ('cap_tube_length_in','Cap tube length (in)',           'float'),
+        ('eev_steps',         'EEV steps / max opening',        'float'),
         ('notes',             'Notes',                          'text'),
     ],
     'coil': [
@@ -77,6 +81,12 @@ PART_FIELD_DEFS: Dict[str, List[tuple]] = {
         ('cfm',         'Air flow (CFM)',                 'float'),
         ('speed_rpm',   'Speed (RPM)',                    'float'),
         ('notes',       'Notes',                          'text'),
+    ],
+    'filter_drier': [
+        ('company_pn',        'Company part number (optional)', 'text'),
+        ('connection_size',   'Connection size',                'text'),
+        ('rated_refrigerant', 'Rated refrigerant',              'text'),
+        ('notes',             'Notes',                          'text'),
     ],
 }
 

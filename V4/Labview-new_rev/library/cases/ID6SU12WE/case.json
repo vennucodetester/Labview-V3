@@ -11,6 +11,7 @@
     "cassette_count": null,
     "cassette_airflow": null,
     "circuits": 6,
+    "expansion_device": "txv",
     "defrost_type": "none",
     "condenser_cooling": "Water",
     "shelf_rows": 6
@@ -59,8 +60,8 @@
   ],
   "created_by": "silam",
   "created_at": "2026-06-14T12:05:54",
-  "updated_at": "2026-07-02T22:53:17",
-  "last_used": "2026-07-02T22:53:17",
+  "updated_at": "2026-07-05T19:41:23",
+  "last_used": "2026-07-05T19:41:23",
   "migration_source": "tr_95dca189",
   "migration_warnings": [
     "Multiple old requests for this case model had conflicting topology; most recent request seeded the case."

@@ -2,6 +2,7 @@ import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype
 import json
 import base64
+import math
 import os
 import re
 import uuid
@@ -96,6 +97,11 @@ class DataManager(QObject):
             "known_but_no_role": [],
             "known_but_filled": [],
             "mapped_columns": {},
+        }
+        self.last_mapping_integrity_report = {
+            "source": "reset",
+            "violation_count": 0,
+            "violations": {},
         }
 
         self.time_range = 'All Data'  # Options: '1 Hour', '8 Hours', '24 Hours', '48 Hours', 'All Data', 'Custom'
@@ -835,21 +841,41 @@ class DataManager(QObject):
                 continue
             x, y, w, h = _component_bounds(comp)
             evaporators.append((tag, str(label), x, y, w, h))
+            header = next((
+                item for item in by_type.get('CombinerManifold', [])
+                if circuit_tag((item.get('properties') or {}).get('circuit_label')) == tag
+            ), None)
+            if header:
+                hx, hy, hw, hh = _component_bounds(header)
+                sh_x, sh_y, sh_side = hx + hw / 2, hy + hh, 'below'
+            else:
+                sh_x, sh_y, sh_side = x + w / 2, y + h, 'below'
             add_dot(
-                f'calc.SH.{tag}', x + w, y + h / 2,
+                f'calc.SH.{tag}', sh_x, sh_y,
                 f'{label} Coil Superheat', 'calculation',
-                calc_key=f'S.H_{tag} coil', display_side='right')
+                calc_key=f'S.H_{tag} coil', display_side=sh_side)
 
-        for comp in by_type.get('TXV', []):
+        expansion_components = []
+        for type_name in ('TXV', 'CapTube', 'EEV'):
+            expansion_components.extend(by_type.get(type_name, []) or [])
+        for comp in expansion_components:
             label = (comp.get('properties') or {}).get('circuit_label')
             tag = circuit_tag(label)
             if not tag:
                 continue
             x, y, w, h = _component_bounds(comp)
+            exp_label = (comp.get('properties') or {}).get('expansion_device_type') or 'TXV'
             add_dot(
                 f'calc.SC_txv.{tag}', x, y + h / 2,
-                f'{label} TXV Subcooling', 'calculation',
+                f'{label} {exp_label} Subcooling', 'calculation',
                 calc_key=f'S.C-txv.{tag}', display_side='left')
+            if exp_label == 'EEV':
+                evap = next((e for e in evaporators if e[0] == tag), None)
+                sx, sy = (x + w / 2, y + h) if evap is None else (evap[2] + evap[4] / 2, evap[3] + evap[5] + 40)
+                add_dot(
+                    f'T_eev.{tag}.suction', sx, sy,
+                    f'{str(label).upper()} EEV Suction Temp',
+                    'temperature', display_side='below')
 
         compressors = [(cid, comp) for cid, comp in comps.items()
                        if comp.get('type') == 'Compressor']
@@ -860,6 +886,10 @@ class DataManager(QObject):
                 'calc.SH_total', x, y + h / 2,
                 'Compressor Total Superheat', 'calculation',
                 calc_key='S.H_total', display_side='left')
+            add_dot(
+                'calc.DSH', x + w, y + h / 2,
+                'Compressor Discharge Superheat', 'calculation',
+                calc_key='D.S.H', display_side='right')
             roles = model.setdefault('sensor_roles', {})
             pressure_roles = {
                 'P_suc': f'Compressor.{comp_id}.SP',
@@ -877,7 +907,8 @@ class DataManager(QObject):
             add_dot(
                 'calc.SC_cond', x + w, y + h - 16,
                 'Condenser Outlet Subcooling', 'calculation',
-                calc_key='S.C', display_side='right')
+                calc_key='S.C', display_side='right', calc_only=True)
+            model.setdefault('sensor_roles', {}).pop('calc.SC_cond', None)
 
             add_dot(
                 'm_dot_meas', x + w, y + h / 2,
@@ -1015,6 +1046,10 @@ class DataManager(QObject):
     def _default_lab_label(canonical: str, human_label: str) -> str:
         """Human-facing default label the lab can type into the DAQ."""
         label = (human_label or canonical or '').strip()
+        import re
+        m = re.match(r'^(T_lls\.out|T_hgs\.out|T_defrost\.term)\.([^.]+)$', canonical or '')
+        if m and '(' not in label:
+            label = f"{label} ({m.group(2).upper()})"
         # Keep generated labels short enough for DAQ headers and PDF tables.
         for suffix in (" Temp", " Temperature"):
             if label.endswith(suffix):
@@ -1054,6 +1089,12 @@ class DataManager(QObject):
         if canonical.startswith("T_txv."):
             parts = canonical.split(".")
             return f"TXV - {parts[1].upper()}" if len(parts) > 1 else "TXV"
+        if canonical.startswith("T_eev."):
+            parts = canonical.split(".")
+            return f"EEV - {parts[1].upper()}" if len(parts) > 1 else "EEV"
+        if canonical.startswith("eev_pos."):
+            parts = canonical.split(".")
+            return f"EEV Position - {parts[1].upper()}" if len(parts) > 1 else "EEV Position"
         if canonical.startswith("T_dist."):
             parts = canonical.split(".")
             return f"Distributor - {parts[1].upper()}" if len(parts) > 1 else "Distributor"
@@ -1074,10 +1115,14 @@ class DataManager(QObject):
             return "Ambient & Room"
         if canonical.endswith(".total"):
             return "System & Flags"
+        if canonical in {"qc", "m_dot", "T_prod.avg", "W_total"}:
+            return "System & Flags"
         if canonical.startswith(("W_case", "A_case", "V_case",
                                  "W_fan", "A_fan",
                                  "W_aswt", "A_aswt",
                                  "W_frame", "A_frame")):
+            return "Case Electrical"
+        if canonical.startswith(("W_aux", "A_aux", "V_aux")):
             return "Case Electrical"
         if canonical.startswith(("W_comp", "A_comp", "V_comp")):
             return "Compressor Electrical"
@@ -1085,8 +1130,11 @@ class DataManager(QObject):
                                  "m_dot_meas", "gpm", "rpm")):
             return "System & Flags"
         if canonical.startswith(("T_liq", "T_flowmeter", "T_lls",
-                                 "T_hgs", "T_defrost", "T_evap_misc")):
+                                 "T_hgs", "T_defrost", "T_evap_misc",
+                                 "T_filter_drier")):
             return "Refrigerant Misc"
+        if canonical.startswith("T_air.avg."):
+            return "System & Flags"
         return ""
 
     @staticmethod
@@ -1490,12 +1538,28 @@ class DataManager(QObject):
         filtered_data = self.get_filtered_data()
         
         if filtered_data is not None and sensor_name in filtered_data.columns:
-            sensor_data = filtered_data[sensor_name].dropna()
+            sensor_data = pd.to_numeric(filtered_data[sensor_name], errors='coerce').dropna()
             
             if not sensor_data.empty:
-                return sensor_data.mean()
+                return float(sensor_data.mean())
         
         return None
+
+    @staticmethod
+    def format_sensor_value(value):
+        """Format a numeric sensor value compactly for diagram labels."""
+        if value is None:
+            return ""
+        try:
+            numeric = float(value)
+        except (TypeError, ValueError):
+            return "" if value is None else str(value)
+        if math.isfinite(numeric):
+            value = numeric
+            if abs(value) >= 100000 or (0 < abs(value) < 0.01):
+                return f"{value:.2e}"
+            return f"{value:.1f}"
+        return ""
 
     
     
@@ -1577,7 +1641,7 @@ class DataManager(QObject):
         if filtered_data is None or sensor_name not in filtered_data.columns:
             return info
         
-        sensor_data = filtered_data[sensor_name].dropna()
+        sensor_data = pd.to_numeric(filtered_data[sensor_name], errors='coerce').dropna()
         if sensor_data.empty:
             return info
         
@@ -1588,9 +1652,9 @@ class DataManager(QObject):
             info['column_letter'] = self._index_to_excel_column(col_index)
         
         # Calculate statistics
-        info['min_value'] = sensor_data.min()
-        info['max_value'] = sensor_data.max()
-        info['avg_value'] = sensor_data.mean()
+        info['min_value'] = float(sensor_data.min())
+        info['max_value'] = float(sensor_data.max())
+        info['avg_value'] = float(sensor_data.mean())
         info['data_points'] = len(sensor_data)
         
         # Get displayed value based on aggregation method
@@ -1805,11 +1869,50 @@ class DataManager(QObject):
                                   'library', 'sensor_aliases', 'seed.json')
     _ALIAS_DB_USER = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                   'library', 'sensor_aliases', 'learned.json')
+    _POISONED_LEARNED_ALIASES = {
+        "Air off ctr evap 6 in LE",
+        "Air off ctr evap 6 in RE",
+        "Return Air 2 in RE",
+        "Return Air 12in RE",
+    }
+
+    def _cleanup_poisoned_learned_aliases(self) -> int:
+        """Remove historically poisoned learned aliases from the user DB."""
+        try:
+            with open(self._ALIAS_DB_USER, encoding='utf-8') as f:
+                learned = json.load(f)
+        except FileNotFoundError:
+            return 0
+        except Exception as exc:
+            print(f"[ALIAS_DB] Poison cleanup load failed: {exc}")
+            return 0
+
+        poisoned_norm = {name.strip().lower() for name in self._POISONED_LEARNED_ALIASES}
+        removed = 0
+        cleaned = {}
+        for canonical, names in (learned or {}).items():
+            kept = []
+            for name in names or []:
+                if str(name).strip().lower() in poisoned_norm:
+                    removed += 1
+                else:
+                    kept.append(name)
+            if kept:
+                cleaned[canonical] = sorted(set(kept))
+        if removed:
+            try:
+                with open(self._ALIAS_DB_USER, 'w', encoding='utf-8') as f:
+                    json.dump(cleaned, f, indent=2, ensure_ascii=False)
+                print(f"[ALIAS_DB] Removed {removed} poisoned learned alias(es)")
+            except Exception as exc:
+                print(f"[ALIAS_DB] Poison cleanup save failed: {exc}")
+        return removed
 
     def _load_alias_db(self) -> dict:
         """Combined alias DB: seed (from 7 historical configs) + learned (this
         session's confirmed mappings).  Returns canonical -> set(alias_str).
         """
+        self._cleanup_poisoned_learned_aliases()
         combined = {}
         for path in (self._ALIAS_DB_PATH, self._ALIAS_DB_USER):
             try:
@@ -1821,6 +1924,21 @@ class DataManager(QObject):
                 pass
             except Exception as e:
                 print(f"[ALIAS_DB] Load failed for {path}: {e}")
+        poisoned = {
+            "T_air.fan_in.ctr.LE": {"Air off ctr evap 6 in LE"},
+            "T_air.fan_in.ctr.RE": {"Air off ctr evap 6 in RE"},
+            "T_air.ret.s4": {"Return Air 12in RE"},
+            "T_air.ret.s5": {"Return Air 2 in RE"},
+            "T_evap_misc": {
+                "Air in evap 6 in LE",
+                "Air in evap 6 in RE",
+                "Air off evap 6 in LE",
+                "Air off evap 6 in RE",
+            },
+        }
+        for canonical, aliases in poisoned.items():
+            if canonical in combined:
+                combined[canonical].difference_update(aliases)
         return combined
 
     def _save_learned_alias(self, canonical: str, csv_name: str):
@@ -1840,6 +1958,59 @@ class DataManager(QObject):
         except Exception as e:
             print(f"[ALIAS_DB] Save failed: {e}")
 
+    def _forget_learned_alias(self, csv_name: str, canonical: str | None = None) -> int:
+        """Remove a learned alias label, optionally scoped to one canonical."""
+        csv_norm = (csv_name or "").strip().lower()
+        if not csv_norm:
+            return 0
+        try:
+            with open(self._ALIAS_DB_USER, encoding='utf-8') as f:
+                learned = json.load(f)
+        except FileNotFoundError:
+            return 0
+        except Exception as exc:
+            print(f"[ALIAS_DB] Forget alias load failed: {exc}")
+            return 0
+
+        removed = 0
+        cleaned = {}
+        for cid, names in (learned or {}).items():
+            kept = []
+            for name in names or []:
+                if (canonical is None or cid == canonical) and str(name).strip().lower() == csv_norm:
+                    removed += 1
+                else:
+                    kept.append(name)
+            if kept:
+                cleaned[cid] = sorted(set(kept))
+        if removed:
+            try:
+                with open(self._ALIAS_DB_USER, 'w', encoding='utf-8') as f:
+                    json.dump(cleaned, f, indent=2, ensure_ascii=False)
+                print(f"[ALIAS_DB] Forgot {removed} learned alias entr{'y' if removed == 1 else 'ies'} for '{csv_name}'")
+            except Exception as exc:
+                print(f"[ALIAS_DB] Forget alias save failed: {exc}")
+        return removed
+
+    def relearn_known_but_filled_conflicts(self) -> int:
+        """Forget aliases behind known-but-filled conflicts and rerun auto-map."""
+        report = getattr(self, 'last_auto_map_report', {}) or {}
+        conflicts = report.get('known_but_filled') or []
+        removed = 0
+        for item in conflicts:
+            item_removed = self._forget_learned_alias(item.get('csv') or '', item.get('canonical'))
+            if not item_removed:
+                # If the conflict came from an older/wrong canonical, forget the
+                # label anywhere in the learned DB and let pattern matching win.
+                item_removed = self._forget_learned_alias(item.get('csv') or '')
+            removed += item_removed
+        if removed:
+            try:
+                self.auto_map_csv_to_canonical(self.get_sensor_list())
+            except Exception as exc:
+                print(f"[ALIAS_DB] Relearn conflict remap failed: {exc}")
+        return removed
+
     def auto_map_csv_to_canonical(self, csv_columns) -> int:
         """For each CSV column, try to find a canonical role on the current
         diagram (via alias DB exact + normalized match) and auto-map it.
@@ -1858,6 +2029,7 @@ class DataManager(QObject):
                                       _canonical_from_box_label)
         if not csv_columns:
             self.last_auto_map_report = self._build_auto_map_report([], {}, {}, {})
+            self.mapping_integrity_check("csv_load")
             return 0
 
         aliases = self._load_alias_db()
@@ -1880,9 +2052,11 @@ class DataManager(QObject):
 
         # Build canonical -> first available role_key on this diagram
         canon_to_role_keys = {}
+        role_to_canonical = {}
         for rk in self._enumerate_diagram_role_keys():
             res = resolve_canonical_from_role_key(self.diagram_model, rk)
             if res:
+                role_to_canonical[rk] = res[0]
                 canon_to_role_keys.setdefault(res[0], []).append(rk)
         for canonical, role_keys in list(canon_to_role_keys.items()):
             canon_to_role_keys[canonical] = sorted(
@@ -1892,12 +2066,10 @@ class DataManager(QObject):
 
         # Walk CSV columns
         mapped_n = 0
-        already_mapped = set((self.diagram_model.get('sensor_roles') or {}).values())
+        role_mappings = self.diagram_model.setdefault('sensor_roles', {})
+        already_mapped = set(role_mappings.values())
         column_results = {}
         for col in csv_columns:
-            if col in already_mapped:
-                column_results[col] = {"status": "already_mapped"}
-                continue
             box_res = _canonical_from_box_label(col)
             box_canonical = box_res[0] if box_res else None
             norm_col = normalize_for_match(col)
@@ -1905,16 +2077,41 @@ class DataManager(QObject):
                 norm_col.startswith('u') or 'unit' in norm_col or norm_col.startswith('ps')
                 or re.search(r'(?:u|unit)\d+$', norm_col)
             )
-            canonical = box_canonical if unit_specific else None
+            canonical = box_canonical
             canonical = canonical or rev_exact.get(col.strip()) or rev_norm.get(norm_col)
             if not canonical:
                 canonical = box_canonical
+            if col in already_mapped:
+                existing_roles = [rk for rk, mapped in role_mappings.items() if mapped == col]
+                existing_canons = {role_to_canonical.get(rk) for rk in existing_roles}
+                if not canonical or canonical in existing_canons:
+                    column_results[col] = {"status": "already_mapped"}
+                    continue
+                for rk in existing_roles:
+                    if role_to_canonical.get(rk) != canonical:
+                        role_mappings.pop(rk, None)
+                already_mapped.discard(col)
             if not canonical:
                 column_results[col] = {"status": "unknown"}
                 continue
             target_keys = canon_to_role_keys.get(canonical, [])
             if not target_keys and canonical.startswith('T_prod.'):
                 created_key = self._ensure_product_sensor_dot(canonical)
+                if created_key:
+                    target_keys = [created_key]
+                    canon_to_role_keys[canonical] = target_keys
+            if not target_keys and canonical.startswith('T_air.'):
+                created_key = self._ensure_air_sensor_dot(canonical)
+                if created_key:
+                    target_keys = [created_key]
+                    canon_to_role_keys[canonical] = target_keys
+            if not target_keys and canonical.startswith('T_coil.') and canonical.endswith('.out'):
+                created_key = self._ensure_coil_outlet_sensor_dot(canonical)
+                if created_key:
+                    target_keys = [created_key]
+                    canon_to_role_keys[canonical] = target_keys
+            if not target_keys:
+                created_key = self._ensure_dynamic_process_sensor_dot(canonical)
                 if created_key:
                     target_keys = [created_key]
                     canon_to_role_keys[canonical] = target_keys
@@ -1955,7 +2152,129 @@ class DataManager(QObject):
                   f"{gaps.get('known_but_no_role_count', 0)} known alias(es) with no dot on this diagram")
         if mapped_n:
             self.diagram_model_changed.emit()
+        self.mapping_integrity_check("csv_load")
         return mapped_n
+
+    def mapping_integrity_check(self, source: str = "manual") -> dict:
+        """Validate the mapping invariants used by the diagram and panel.
+
+        Invariants:
+          A. Every mapped role key still exists on the current diagram.
+          B. Each CSV column belongs to exactly one bucket.
+          C. Human-facing labels are unique within the generated diagram rows.
+          D. Pattern-resolvable aliases do not point at another canonical.
+        """
+        from collections import Counter, defaultdict
+
+        try:
+            from sensor_canonical import _canonical_from_box_label
+        except Exception:
+            _canonical_from_box_label = None
+
+        violations = {
+            "mapped_not_visible": [],
+            "csv_bucket_duplicates": [],
+            "duplicate_labels": [],
+            "alias_contradictions": [],
+        }
+
+        roles = self.diagram_model.get('sensor_roles') or {}
+        expected_rows = self.get_expected_sensor_rows(include_disabled=True)
+        expected_roles = {row.get('role_key') for row in expected_rows if row.get('role_key')}
+
+        for role_key, csv_name in sorted(roles.items()):
+            if not csv_name:
+                continue
+            if role_key not in expected_roles:
+                violations["mapped_not_visible"].append({
+                    "role_key": role_key,
+                    "csv": csv_name,
+                })
+
+        if self.csv_data is not None:
+            csv_columns = list(self.get_sensor_list())
+            row_names = [row.get('csv_column') for row in self.get_csv_sensor_rows()]
+            row_counts = Counter(row_names)
+            role_value_counts = Counter(
+                csv_name for csv_name in roles.values()
+                if csv_name in set(csv_columns)
+            )
+            for csv_name in csv_columns:
+                row_count = row_counts.get(csv_name, 0)
+                role_count = role_value_counts.get(csv_name, 0)
+                if row_count != 1 or role_count > 1:
+                    violations["csv_bucket_duplicates"].append({
+                        "csv": csv_name,
+                        "row_count": row_count,
+                        "role_count": role_count,
+                    })
+
+        labels = defaultdict(list)
+        for row in expected_rows:
+            if row.get('enabled') is False:
+                continue
+            label = (row.get('default_label') or row.get('human_label') or '').strip()
+            if not label:
+                continue
+            labels[label.lower()].append({
+                "label": label,
+                "canonical": row.get('canonical'),
+                "role_key": row.get('role_key'),
+            })
+        for entries in labels.values():
+            canonicals = {entry.get('canonical') for entry in entries}
+            if len(entries) > 1 and len(canonicals) > 1:
+                violations["duplicate_labels"].append({
+                    "label": entries[0].get('label'),
+                    "entries": entries,
+                })
+
+        if _canonical_from_box_label:
+            self._cleanup_poisoned_learned_aliases()
+            try:
+                with open(self._ALIAS_DB_USER, encoding='utf-8') as f:
+                    aliases = json.load(f)
+            except FileNotFoundError:
+                aliases = {}
+            except Exception as exc:
+                aliases = {}
+                print(f"[MAPPING_INTEGRITY] learned alias load failed: {exc}")
+            for canonical, names in sorted((aliases or {}).items()):
+                for name in sorted(names or []):
+                    resolved = _canonical_from_box_label(name)
+                    if resolved and resolved[0] and resolved[0] != canonical:
+                        violations["alias_contradictions"].append({
+                            "alias": name,
+                            "alias_canonical": canonical,
+                            "pattern_canonical": resolved[0],
+                        })
+
+        compact_violations = {k: v for k, v in violations.items() if v}
+        report = {
+            "source": source,
+            "violation_count": sum(len(v) for v in compact_violations.values()),
+            "violations": compact_violations,
+            "checked_roles": len(roles),
+            "checked_expected_rows": len(expected_rows),
+            "checked_csv_columns": len(self.get_sensor_list()) if self.csv_data is not None else 0,
+        }
+        self.last_mapping_integrity_report = copy.deepcopy(report)
+        if report["violation_count"]:
+            print(f"[MAPPING_INTEGRITY] {source}: {report['violation_count']} violation(s)")
+            for key, items in compact_violations.items():
+                print(f"[MAPPING_INTEGRITY]   {key}: {len(items)}")
+        else:
+            print(
+                f"[MAPPING_INTEGRITY] {source}: OK "
+                f"({report['checked_roles']} mapped role(s), "
+                f"{report['checked_expected_rows']} expected row(s), "
+                f"{report['checked_csv_columns']} CSV column(s))"
+            )
+        return copy.deepcopy(report)
+
+    def get_mapping_integrity_report(self) -> dict:
+        """Return the most recent mapping integrity check report."""
+        return copy.deepcopy(getattr(self, 'last_mapping_integrity_report', {}) or {})
 
     def _role_assignment_sort_key(self, canonical: str, role_key: str):
         """Prefer a role whose circuit/slot number matches the canonical id."""
@@ -2061,11 +2380,19 @@ class DataManager(QObject):
             combined_w = right_edge - left_edge
             count = len(cols)
 
-        mode = ((self.diagram_model.get('_topology') or {}).get('mode') or '').lower()
+        topo = self.diagram_model.get('_topology') or {}
+        mode = (topo.get('mode') or '').lower()
+        shelf_width_rule = topo.get('shelf_width_in')
+        if shelf_width_rule is None:
+            family = (topo.get('family') or '').lower()
+            if family == 'insight':
+                shelf_width_rule = 48
+            elif family == 'reach_in':
+                shelf_width_rule = 30
         if grid_fallback:
-            shelf_width_in = 48 if count >= 3 else 30
+            shelf_width_in = int(shelf_width_rule or (48 if count >= 3 else 30))
         else:
-            shelf_width_in = 48 if mode == 'modular' else 30
+            shelf_width_in = int(shelf_width_rule or (48 if mode == 'modular' else 30))
         total_shelf_in = count * shelf_width_in
 
         col_norm = col_id.lower()
@@ -2108,6 +2435,268 @@ class DataManager(QObject):
         }
         return canonical
 
+    def _ensure_air_sensor_dot(self, canonical: str) -> str | None:
+        """Create an air-band dot for arbitrary inch positions in CSV labels."""
+        if not canonical or not canonical.startswith('T_air.'):
+            return None
+        custom = self.diagram_model.setdefault('custom_sensors', {})
+        if canonical in custom:
+            return canonical
+
+        parts = canonical.split('.')
+        if len(parts) != 3:
+            return None
+        _, band, slot = parts
+        m = re.match(r'^(LE|RE)(\d+)$', slot, re.IGNORECASE)
+        if not m:
+            return None
+        side, inches_text = m.groups()
+        side = side.upper()
+        inches = float(inches_text)
+
+        band_y = {
+            'disc': None,
+            'sec': None,
+            'ret': None,
+        }
+        existing = custom or {}
+        for key, data in existing.items():
+            if key.startswith(f'T_air.{band}.s'):
+                label = str(data.get('label') or '').lower()
+                pos = data.get('position') or []
+                if len(pos) < 2:
+                    continue
+                if band_y.get(band) is None:
+                    band_y[band] = float(pos[1])
+        y = band_y.get(band)
+        if y is None:
+            return None
+
+        comps = self.diagram_model.get('components') or {}
+        shelf_items = []
+        for comp in comps.values():
+            if comp.get('type') == 'DecorativeRect':
+                props = comp.get('properties') or {}
+                label = str(props.get('label') or '').lower()
+                if 'shelf' in label:
+                    x, _y, w, _h = _component_bounds(comp)
+                    shelf_items.append((x, x + w))
+        if shelf_items:
+            left_edge = min(x0 for x0, _x1 in shelf_items)
+            right_edge = max(x1 for _x0, x1 in shelf_items)
+            combined_w = right_edge - left_edge
+        else:
+            air_positions = []
+            for key, data in existing.items():
+                if key.startswith(f'T_air.{band}.s'):
+                    pos = data.get('position') or []
+                    if len(pos) >= 2:
+                        air_positions.append(float(pos[0]))
+            if not air_positions:
+                return None
+            left_edge = min(air_positions)
+            right_edge = max(air_positions)
+            combined_w = right_edge - left_edge
+
+        topo = self.diagram_model.get('_topology') or {}
+        shelf_width_in = float(topo.get('shelf_width_in') or 48)
+        modules = float(topo.get('modules') or topo.get('size_count') or 1)
+        total_in = max(shelf_width_in, shelf_width_in * modules)
+        distance_from_left = inches if side == 'LE' else total_in - inches
+        distance_from_left = max(0.0, min(total_in, distance_from_left))
+        x = left_edge + combined_w * (distance_from_left / total_in if total_in else 0)
+
+        human_band = {'disc': 'Discharge', 'sec': 'Secondary', 'ret': 'Return'}.get(band, band)
+        custom[canonical] = {
+            'type': 'temperature',
+            'position': [x, y],
+            'label': f'{human_band} Air - {int(inches)}in {side}',
+            'display_side': 'above',
+        }
+        return canonical
+
+    def _ensure_coil_outlet_sensor_dot(self, canonical: str) -> str | None:
+        """Create an aggregate coil outlet dot when a CSV has one outlet probe."""
+        parts = (canonical or '').split('.')
+        if len(parts) != 3 or parts[0] != 'T_coil' or parts[2] != 'out':
+            return None
+        tag = parts[1]
+        custom = self.diagram_model.setdefault('custom_sensors', {})
+        if canonical in custom:
+            return canonical
+
+        label_map = {'lh': 'Left', 'ctr': 'Center', 'rh': 'Right'}
+        target_label = label_map.get(tag, tag)
+        comps = self.diagram_model.get('components') or {}
+        candidates = []
+        for comp in comps.values():
+            if comp.get('type') not in ('CombinerManifold', 'Evaporator'):
+                continue
+            props = comp.get('properties') or {}
+            comp_tag = {'Left': 'lh', 'Center': 'ctr', 'Right': 'rh'}.get(
+                str(props.get('circuit_label') or ''), str(props.get('circuit_label') or '').lower())
+            if comp_tag == tag:
+                candidates.append(comp)
+        if not candidates:
+            return None
+        comp = next((c for c in candidates if c.get('type') == 'CombinerManifold'), candidates[0])
+        x, y, w, h = _component_bounds(comp)
+        custom[canonical] = {
+            'type': 'temperature',
+            'position': [x + w / 2, y + h],
+            'label': f'{target_label} Coil Outlet Temp',
+            'display_side': 'below',
+        }
+        return canonical
+
+    def _ensure_dynamic_process_sensor_dot(self, canonical: str) -> str | None:
+        """Create physical dot homes for case-specific CSV labels.
+
+        Some historical case files use aggregate labels such as "L Coil Inlet"
+        or "Into TXV Split" that are not emitted as fixed ports by the diagram
+        generator. Add those dots at the relevant process geometry when the
+        loaded CSV proves the sensor exists.
+        """
+        if not canonical:
+            return None
+        custom = self.diagram_model.setdefault('custom_sensors', {})
+        if canonical in custom:
+            return canonical
+
+        comps = self.diagram_model.get('components') or {}
+        if not comps:
+            return None
+
+        tag_label = {'lh': 'Left', 'ctr': 'Center', 'rh': 'Right'}
+
+        def circuit_tag(comp: dict) -> str:
+            props = comp.get('properties') or {}
+            raw = str(props.get('circuit_label') or '').strip().lower()
+            return {
+                'left': 'lh', 'lh': 'lh',
+                'center': 'ctr', 'ctr': 'ctr',
+                'right': 'rh', 'rh': 'rh',
+            }.get(raw, raw)
+
+        def component_of_type(type_name: str, tag: str | None = None) -> dict | None:
+            candidates = []
+            for comp in comps.values():
+                if comp.get('type') != type_name:
+                    continue
+                if tag is None or circuit_tag(comp) == tag:
+                    candidates.append(comp)
+            return candidates[0] if candidates else None
+
+        def all_components(type_name: str) -> list[dict]:
+            return [comp for comp in comps.values() if comp.get('type') == type_name]
+
+        def add_dot(x, y, label, sensor_type='temperature', display_side='above'):
+            custom[canonical] = {
+                'type': sensor_type,
+                'position': [float(x), float(y)],
+                'label': label,
+                'display_side': display_side,
+            }
+            return canonical
+
+        parts = canonical.split('.')
+
+        if canonical.startswith('T_air.fan_off.') and canonical.endswith('.avg') and len(parts) == 4:
+            tag = parts[2]
+            anchors = []
+            for suffix in ('LE', 'RE'):
+                data = custom.get(f'T_air.fan_off.{tag}.{suffix}')
+                pos = data.get('position') if isinstance(data, dict) else None
+                if pos and len(pos) >= 2:
+                    anchors.append((float(pos[0]), float(pos[1])))
+            if len(anchors) >= 2:
+                x = sum(p[0] for p in anchors) / len(anchors)
+                y = sum(p[1] for p in anchors) / len(anchors)
+            else:
+                fan = component_of_type('EvapFan', tag)
+                if not fan:
+                    return None
+                fx, fy, fw, _fh = _component_bounds(fan)
+                x, y = fx + fw / 2, fy - 18
+            return add_dot(x, y, f'Discharge Air Sensor ({tag.upper()})', 'temperature', 'above')
+
+        if len(parts) >= 3 and parts[0] == 'T_coil' and parts[2] == 'in':
+            tag = parts[1]
+            comp = component_of_type('SplitterManifold', tag) or component_of_type('Evaporator', tag)
+            if not comp:
+                return None
+            x, y, w, h = _component_bounds(comp)
+            label = f"{tag_label.get(tag, tag.upper())} Coil Inlet Temp"
+            return add_dot(x + w / 2, y, label, 'temperature', 'above')
+
+        if canonical == 'T_coil.common.out':
+            manifolds = all_components('CombinerManifold') or all_components('Evaporator')
+            if not manifolds:
+                return None
+            bounds = [_component_bounds(comp) for comp in manifolds]
+            x = sum(b[0] + b[2] / 2 for b in bounds) / len(bounds)
+            y = max(b[1] + b[3] for b in bounds)
+            return add_dot(x, y + 16, 'Common Coil Outlet Temp', 'temperature', 'below')
+
+        if canonical.startswith('T_defrost.term.') and len(parts) == 3:
+            tag = parts[2]
+            comp = component_of_type('Evaporator', tag)
+            if not comp:
+                return None
+            x, y, w, h = _component_bounds(comp)
+            side = 'left' if tag == 'lh' else 'right' if tag == 'rh' else 'below'
+            dot_x = x - 12 if tag == 'lh' else x + w + 12 if tag == 'rh' else x + w / 2
+            label = f"{tag_label.get(tag, tag.upper())} Defrost Termination Sensor"
+            return add_dot(dot_x, y + h / 2, label, 'temperature', side)
+
+        if canonical == 'T_txv_split.in':
+            txvs = all_components('TXV')
+            if not txvs:
+                return None
+            bounds = [_component_bounds(comp) for comp in txvs]
+            x = sum(b[0] + b[2] / 2 for b in bounds) / len(bounds)
+            y = min(b[1] for b in bounds) - 36
+            return add_dot(x, y, 'Into TXV Split Temp', 'temperature', 'above')
+
+        if canonical.startswith('T_txv_split.out.') and len(parts) == 3:
+            tag = parts[2]
+            txv = component_of_type('TXV', tag)
+            if not txv:
+                return None
+            x, y, w, _h = _component_bounds(txv)
+            side = 'left' if tag == 'lh' else 'right' if tag == 'rh' else 'above'
+            label = f"Out of TXV Split {tag_label.get(tag, tag.upper())} Temp"
+            return add_dot(x + w / 2, y - 20, label, 'temperature', side)
+
+        if canonical == 'v_air.fpm':
+            fans = all_components('EvapFan')
+            if fans:
+                bounds = [_component_bounds(comp) for comp in fans]
+                x = sum(b[0] + b[2] / 2 for b in bounds) / len(bounds)
+                y = min(b[1] for b in bounds) - 42
+            else:
+                fan_rects = [
+                    comp for comp in comps.values()
+                    if comp.get('type') == 'DecorativeRect'
+                    and 'fan' in str((comp.get('properties') or {}).get('label') or '').lower()
+                ]
+                if fan_rects:
+                    bounds = [_component_bounds(comp) for comp in fan_rects]
+                    x = sum(b[0] + b[2] / 2 for b in bounds) / len(bounds)
+                    y = min(b[1] for b in bounds) - 40
+                else:
+                    air_dots = [
+                        data.get('position') for key, data in custom.items()
+                        if isinstance(data, dict) and str(key).startswith('T_air.') and data.get('position')
+                    ]
+                    if not air_dots:
+                        return None
+                    x = sum(float(pos[0]) for pos in air_dots) / len(air_dots)
+                    y = min(float(pos[1]) for pos in air_dots) + 115
+            return add_dot(x, y, 'Air Velocities FPM', 'flow', 'above')
+
+        return None
+
     @staticmethod
     def _is_ignorable_csv_column(column_name: str) -> bool:
         """Columns that are not raw physical sensor dots for mapping purposes."""
@@ -2124,9 +2713,7 @@ class DataManager(QObject):
         normalized = ''.join(ch for ch in low if ch.isalnum())
         derived = {
             'sh', 'she',
-            'evap', 'btu', 'totalflow',
-            'avgprodtemp', 'avgproducttemp', 'avgprodsimtemp',
-            'averageprodtemp', 'averageprodsimtemp',
+            'evap',
         }
         return normalized in derived
 
@@ -2167,10 +2754,17 @@ class DataManager(QObject):
                     "canonical": info.get("canonical"),
                 })
             elif status == "known_but_filled":
+                occupied = []
+                for role_key in info.get("role_keys") or []:
+                    occupied.append({
+                        "role_key": role_key,
+                        "csv": roles.get(role_key, ""),
+                    })
                 known_but_filled.append({
                     "csv": col,
                     "canonical": info.get("canonical"),
                     "role_keys": info.get("role_keys") or [],
+                    "occupied": occupied,
                 })
             else:
                 unmapped_csv.append(col)
@@ -2417,7 +3011,16 @@ class DataManager(QObject):
 
     @staticmethod
     def _get_layout_key(topo: dict) -> str:
-        mode     = topo.get('mode', 'modular')
+        if topo.get('family') or topo.get('system'):
+            family = topo.get('family') or 'unknown'
+            size_count = int(topo.get('size_count') or topo.get('modules') or topo.get('num_doors') or 1)
+            system = topo.get('system') or topo.get('system_type') or 'shared'
+            cassette_count = topo.get('cassette_count') if system == 'cassette' else 0
+            circuits = int(topo.get('circuits') or topo.get('circuits_per_coil') or 6)
+            expansion = topo.get('expansion_device') or 'txv'
+            return f"{family}_{size_count}_{system}_{cassette_count or 0}_{circuits}cir_{expansion}"
+
+        mode = topo.get('mode', 'modular')
         circuits = int(topo.get('circuits_per_coil', 6) or 6)
         if mode == 'modular':
             suffix = f"{topo.get('modules', 3)}mod"

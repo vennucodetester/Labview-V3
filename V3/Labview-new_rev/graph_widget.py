@@ -86,9 +86,13 @@ class GraphWidget(QWidget):
         
         pg.setConfigOption('background', 'w')
         pg.setConfigOption('foreground', 'k')
+        pg.setConfigOption('antialias', False)
         
         # Multi-range selection state
         self.range_regions = []  # List of dict: {'region': LinearRegionItem, 'mode': 'keep'|'delete'}
+        self._has_plotted_data = False
+        self._last_plotted_sensors = ()
+        self._debug_graph = False
         
         self.setupUi()
         self.connect_signals()
@@ -105,6 +109,23 @@ class GraphWidget(QWidget):
         control_layout = QHBoxLayout(control_bar)
         
         self.reset_zoom_btn = QPushButton("Reset Zoom")
+        self.box_zoom_btn = QToolButton()
+        self.box_zoom_btn.setText("Box Zoom")
+        self.box_zoom_btn.setCheckable(True)
+        self.box_zoom_btn.setToolTip("Drag a rectangle to zoom into it")
+
+        self.lock_x_btn = QToolButton()
+        self.lock_x_btn.setText("Lock X")
+        self.lock_x_btn.setCheckable(True)
+        self.lock_x_btn.setToolTip("Freeze the time axis: wheel/drag then only zooms and pans the Y axis")
+
+        self.lock_y_btn = QToolButton()
+        self.lock_y_btn.setText("Lock Y")
+        self.lock_y_btn.setCheckable(True)
+        self.lock_y_btn.setToolTip("Freeze the value axis: wheel/drag then only zooms and pans the time axis")
+
+        self.fit_y_btn = QPushButton("Fit Y")
+        self.fit_y_btn.setToolTip("Rescale the Y axis to fit the data visible in the current time window")
         
         # Create dropdown button for range selection
         self.range_btn = QToolButton()
@@ -131,6 +152,10 @@ class GraphWidget(QWidget):
         self.snapshot_btn.setToolTip("Capture current graph view as a snapshot for comparison")
 
         control_layout.addWidget(self.reset_zoom_btn)
+        control_layout.addWidget(self.box_zoom_btn)
+        control_layout.addWidget(self.lock_x_btn)
+        control_layout.addWidget(self.lock_y_btn)
+        control_layout.addWidget(self.fit_y_btn)
         control_layout.addWidget(self.range_btn)
         control_layout.addWidget(self.apply_range_btn)
         control_layout.addWidget(self.auto_detect_btn)
@@ -148,8 +173,10 @@ class GraphWidget(QWidget):
         # Use DateAxisItem to show actual timestamps from CSV
         self.plot_widget = pg.PlotWidget(axisItems={'bottom': pg.DateAxisItem()})
         self.plot_widget.showGrid(x=True, y=True, alpha=0.3)
-        self.plot_widget.getAxis('left').setLabel('Sensor Value')
+        self.plot_widget.getAxis('left').setLabel('Value (mixed units)')
         self.plot_widget.getAxis('bottom').setLabel('Time')
+        self.plot_widget.getAxis('left').setStyle(tickFont=self.font())
+        self.plot_widget.getAxis('bottom').setStyle(tickFont=self.font())
         
         # We are using a custom legend table, so the built-in one is not needed.
         # self.legend = self.plot_widget.addLegend() 
@@ -166,41 +193,226 @@ class GraphWidget(QWidget):
         main_layout.addWidget(self.stats_table, 1) # Give table minimal space
 
     def connect_signals(self):
-        self.reset_zoom_btn.clicked.connect(self.plot_widget.autoRange)
+        self.reset_zoom_btn.clicked.connect(self.reset_zoom)
+        self.box_zoom_btn.toggled.connect(self.set_box_zoom_enabled)
+        self.lock_x_btn.toggled.connect(self._update_axis_locks)
+        self.lock_y_btn.toggled.connect(self._update_axis_locks)
+        self.fit_y_btn.clicked.connect(self.fit_y_to_view)
         self.apply_range_btn.clicked.connect(self.apply_custom_range)
         self.auto_detect_btn.clicked.connect(self.auto_detect_defrost)
         self.snapshot_btn.clicked.connect(self.capture_snapshot)
 
+    def reset_zoom(self):
+        self.plot_widget.autoRange()
+
+    def set_box_zoom_enabled(self, enabled):
+        mode = pg.ViewBox.RectMode if enabled else pg.ViewBox.PanMode
+        self.plot_widget.getViewBox().setMouseMode(mode)
+
+    def _update_axis_locks(self):
+        vb = self.plot_widget.getViewBox()
+        vb.setMouseEnabled(x=not self.lock_x_btn.isChecked(),
+                           y=not self.lock_y_btn.isChecked())
+
+    def fit_y_to_view(self):
+        """Rescale the Y axis to the data inside the current X (time) window,
+        leaving the X range untouched."""
+        vb = self.plot_widget.getViewBox()
+        x_min, x_max = vb.viewRange()[0]
+        lo = hi = None
+        for item in self.plot_widget.listDataItems():
+            try:
+                bounds = item.dataBounds(1, orthoRange=[x_min, x_max])
+            except Exception:
+                bounds = None
+            if not bounds or bounds[0] is None or bounds[1] is None:
+                continue
+            lo = bounds[0] if lo is None else min(lo, bounds[0])
+            hi = bounds[1] if hi is None else max(hi, bounds[1])
+        if lo is None:
+            return
+        if hi <= lo:
+            pad = abs(hi) * 0.05 or 1.0
+            lo, hi = lo - pad, hi + pad
+        vb.setYRange(lo, hi, padding=0.05)
+
+    def _timestamps_to_unix(self, timestamps):
+        timestamps = pd.to_datetime(timestamps)
+        valid_mask = timestamps.notna()
+        if not valid_mask.all():
+            timestamps = timestamps[valid_mask]
+
+        try:
+            from dateutil.tz import tzlocal
+            local_tz = tzlocal()
+        except Exception:
+            local_tz = None
+
+        if timestamps.dt.tz is None:
+            if local_tz is not None:
+                timestamps = timestamps.dt.tz_localize(
+                    local_tz,
+                    ambiguous='NaT',
+                    nonexistent='shift_forward'
+                )
+            else:
+                timestamps = timestamps.dt.tz_localize('UTC')
+
+        timestamps = timestamps.dt.tz_convert('UTC')
+        return timestamps.astype('int64') // 10**9, valid_mask
+
+    def _unix_to_local_naive(self, value):
+        try:
+            from dateutil.tz import tzlocal
+            local_tz = tzlocal()
+            return pd.to_datetime(value, unit='s', utc=True).tz_convert(local_tz).tz_localize(None)
+        except Exception:
+            return pd.to_datetime(value, unit='s')
+
+    def _resolve_graph_sensors(self, selected_sensors, df):
+        """Resolve graph selections to real dataframe columns before plotting.
+
+        The sensor panel can show planned/default labels from the diagram. Those
+        labels are useful for the UI, but the graph must plot CSV column names.
+        """
+        if df is None:
+            return [], []
+
+        df_columns = [str(col) for col in df.columns if str(col) != 'Timestamp']
+        exact_columns = set(df_columns)
+        stripped_to_column = {col.strip(): col for col in df_columns}
+
+        try:
+            from sensor_canonical import normalize_for_match
+        except Exception:
+            normalize_for_match = lambda value: ''.join(ch.lower() for ch in str(value) if ch.isalnum())
+
+        normalized_to_column = {}
+        for col in df_columns:
+            normalized_to_column.setdefault(normalize_for_match(col), col)
+
+        label_to_column = {}
+        try:
+            rows = self.data_manager.get_expected_sensor_rows(include_disabled=True)
+        except Exception:
+            rows = []
+
+        for row in rows or []:
+            mapped = row.get('mapped_label')
+            if mapped not in exact_columns:
+                continue
+            aliases = {
+                row.get('default_label'),
+                row.get('human_label'),
+                row.get('canonical'),
+                row.get('lab_label'),
+                row.get('role_key'),
+                mapped,
+            }
+            for alias in aliases:
+                if not alias:
+                    continue
+                label_to_column[str(alias)] = mapped
+                label_to_column[str(alias).strip()] = mapped
+                label_to_column[normalize_for_match(alias)] = mapped
+
+        resolved = []
+        unresolved = []
+        seen = set()
+        for raw in sorted((str(sensor) for sensor in selected_sensors), key=str.lower):
+            column = None
+            if raw in exact_columns:
+                column = raw
+            elif raw.strip() in stripped_to_column:
+                column = stripped_to_column[raw.strip()]
+            else:
+                column = label_to_column.get(raw)
+                column = column or label_to_column.get(raw.strip())
+                column = column or label_to_column.get(normalize_for_match(raw))
+                column = column or normalized_to_column.get(normalize_for_match(raw))
+
+            if column and column not in seen:
+                resolved.append(column)
+                seen.add(column)
+            elif not column:
+                unresolved.append(raw)
+
+        return resolved, unresolved
+
+    def _configure_curve_for_large_data(self, curve):
+        try:
+            curve.setDownsampling(auto=True, method='peak')
+        except TypeError:
+            try:
+                curve.setDownsampling(auto=True)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+        try:
+            curve.setClipToView(True)
+        except Exception:
+            pass
+
+        try:
+            curve.setSkipFiniteCheck(True)
+        except Exception:
+            pass
+
+    def _debug(self, message):
+        if self._debug_graph:
+            print(message)
+
     def update_ui(self):
         """Redraws the graph and stats table based on the DataManager's state."""
-        print(f"[GRAPH_UPDATE] update_ui() called - START")
+        self._debug(f"[GRAPH_UPDATE] update_ui() called - START")
+        previous_range = self.plot_widget.viewRange() if self._has_plotted_data else None
 
         # Update file visibility labels
         import os
         csv_name = os.path.basename(self.data_manager.csv_path) if self.data_manager.csv_path else "No CSV loaded"
         config_name = os.path.basename(self.data_manager.config_path) if self.data_manager.config_path else "No Config loaded"
         self.file_info_label.setText(f"CSV: {csv_name} | Config: {config_name}")
+        self.plot_widget.setTitle(csv_name if self.data_manager.csv_path else "")
 
         try:
             self.plot_widget.clear()
             self.stats_table.setRowCount(0)
-            print(f"[GRAPH_UPDATE] Cleared plot and table - SUCCESS")
+            self._debug(f"[GRAPH_UPDATE] Cleared plot and table - SUCCESS")
         except Exception as e:
             print(f"[GRAPH_UPDATE] ERROR clearing plot/table: {e}")
             return
 
         # Use filtered data based on time range
         df = self.data_manager.get_filtered_data()
-        sensors_to_plot = self.data_manager.graph_sensors
+        selected_graph_sensors = set(self.data_manager.graph_sensors)
+        sensors_to_plot, unresolved_sensors = self._resolve_graph_sensors(selected_graph_sensors, df)
+        current_plotted_sensors = tuple(sorted(str(sensor) for sensor in sensors_to_plot))
+        sensor_set_changed = (
+            previous_range is not None
+            and current_plotted_sensors != self._last_plotted_sensors
+        )
 
-        print(f"[GRAPH_UPDATE] Data check - df: {df is not None}, sensors: {sensors_to_plot}, empty: {df.empty if df is not None else 'N/A'}")
+        if unresolved_sensors:
+            self.file_info_label.setText(
+                f"CSV: {csv_name} | Config: {config_name} | "
+                f"{len(unresolved_sensors)} selected label(s) not found in CSV"
+            )
+            self._debug(f"[GRAPH_UPDATE] Unresolved graph labels: {unresolved_sensors[:20]}")
+
+        self._debug(f"[GRAPH_UPDATE] Data check - df: {df is not None}, sensors: {sensors_to_plot}, empty: {df.empty if df is not None else 'N/A'}")
         
         if df is None or not sensors_to_plot or df.empty:
-            print(f"[GRAPH_UPDATE] No data to plot - returning early")
+            self._debug(f"[GRAPH_UPDATE] No data to plot - returning early")
             return
             
 
-        colors = ['#E74C3C', '#3498DB', '#2ECC71', '#F39C12', '#9B59B6', '#1ABC9C']
+        colors = [
+            '#0072B2', '#D55E00', '#009E73', '#CC79A7',
+            '#F0E442', '#56B4E9', '#E69F00', '#000000',
+            '#8A2BE2', '#A6761D', '#1B9E77', '#E7298A'
+        ]
         
         timestamps = None
         unix_timestamps = None
@@ -212,15 +424,15 @@ class GraphWidget(QWidget):
                 has_timestamps = True
                 
                 # Filter out NaT values to prevent invalid Unix timestamp conversion
-                valid_mask = timestamps.notna()
+                unix_timestamps, valid_mask = self._timestamps_to_unix(df['Timestamp'])
                 if not valid_mask.all():
-                    print(f"[GRAPH] WARNING: Found {valid_mask.sum()} valid timestamps out of {len(timestamps)} total (removing NaT)")
+                    self._debug(f"[GRAPH] WARNING: Found {valid_mask.sum()} valid timestamps out of {len(timestamps)} total (removing NaT)")
                     timestamps = timestamps[valid_mask]
                     df = df[valid_mask].copy()  # Also filter the DataFrame to keep alignment
                 
-                print(f"[GRAPH] Original timestamps: {timestamps.iloc[0]} to {timestamps.iloc[-1]}")
-                print(f"[GRAPH] Timestamp dtype: {timestamps.dtype}")
-                print(f"[GRAPH] Timestamp timezone: {timestamps.dtype.tz if hasattr(timestamps.dtype, 'tz') else 'None'}")
+                self._debug(f"[GRAPH] Original timestamps: {timestamps.iloc[0]} to {timestamps.iloc[-1]}")
+                self._debug(f"[GRAPH] Timestamp dtype: {timestamps.dtype}")
+                self._debug(f"[GRAPH] Timestamp timezone: {timestamps.dtype.tz if hasattr(timestamps.dtype, 'tz') else 'None'}")
                 
                 # CRITICAL FIX: Handle naive timestamps for DateAxisItem
                 # 
@@ -243,57 +455,23 @@ class GraphWidget(QWidget):
                 # - Unix: 1744542152
                 # - DateAxisItem: utcfromtimestamp(1744542152 - 18000) = utcfromtimestamp(1744524152) = 2025-04-13 06:02:32 ✅
                 
-                if timestamps.dt.tz is None:
-                    # Naive timestamps - treat as local time
-                    import time
-                    
-                    # Get local timezone offset in seconds
-                    if time.daylight:
-                        offset_sec = time.altzone  # e.g., 18000 for CDT (UTC-5)
-                        tz_name = time.tzname[1]
-                    else:
-                        offset_sec = time.timezone
-                        tz_name = time.tzname[0]
-                    
-                    print(f"[GRAPH] Detected local timezone: {tz_name}")
-                    print(f"[GRAPH] Timezone offset from UTC: {-offset_sec}s ({-offset_sec/3600:.0f} hours)")
-                    
-                    # Convert local time to UTC by ADDING the offset
-                    # offset_sec is POSITIVE for west of UTC (e.g., 18000 for CDT which is UTC-5)
-                    # UTC time = Local time + offset_sec
-                    # Example: 06:02:32 CDT + 18000s (5 hours) = 11:02:32 UTC
-                    utc_timestamps = timestamps + pd.Timedelta(seconds=offset_sec)
-                    
-                    print(f"[GRAPH] Converted local to UTC: {utc_timestamps.iloc[0]}")
-                    
-                    # Now convert UTC timestamps to Unix
-                    unix_timestamps = utc_timestamps.astype('int64') // 10**9
-                else:
-                    # Timezone-aware timestamps - convert directly to Unix
-                    unix_timestamps = timestamps.astype('int64') // 10**9
-                
-                print(f"[GRAPH] Unix timestamps (for DateAxisItem): {unix_timestamps.iloc[0]} to {unix_timestamps.iloc[-1]}")
-                # Verify what DateAxisItem will display (only for naive timestamps where time is imported)
-                if timestamps.dt.tz is None:
-                    import time
-                    test_display = pd.to_datetime(unix_timestamps.iloc[0] - (-18000 if time.daylight else -21600), unit='s')
-                    print(f"[GRAPH] DateAxisItem will display (UTC): {test_display}")
+                self._debug(f"[GRAPH] Unix timestamps (for DateAxisItem): {unix_timestamps.iloc[0]} to {unix_timestamps.iloc[-1]}")
                 
             except Exception as e:
                 print(f"Timestamp conversion failed: {e}. Plotting by index.")
                 import traceback
                 traceback.print_exc()
         
-        print(f"[GRAPH_UPDATE] Setting up stats table with {len(sensors_to_plot)} sensors")
+        self._debug(f"[GRAPH_UPDATE] Setting up stats table with {len(sensors_to_plot)} sensors")
         self.stats_table.setRowCount(len(sensors_to_plot))
         
-        print(f"[GRAPH_UPDATE] Starting to plot {len(sensors_to_plot)} sensors")
+        self._debug(f"[GRAPH_UPDATE] Starting to plot {len(sensors_to_plot)} sensors")
         for i, sensor_name in enumerate(sensors_to_plot):
-            print(f"[GRAPH_UPDATE] Processing sensor {i+1}/{len(sensors_to_plot)}: {sensor_name}")
+            self._debug(f"[GRAPH_UPDATE] Processing sensor {i+1}/{len(sensors_to_plot)}: {sensor_name}")
             if sensor_name in df.columns:
-                print(f"[GRAPH_UPDATE] Sensor {sensor_name} found in data")
+                self._debug(f"[GRAPH_UPDATE] Sensor {sensor_name} found in data")
                 # Faster rendering: thinner pens, disable antialias via pen if desired
-                pen = pg.mkPen(color=colors[i % len(colors)], width=1.5)
+                pen = pg.mkPen(color=colors[i % len(colors)], width=1.6)
                 y_data = df[sensor_name].to_numpy()
 
                 # Plotting
@@ -301,30 +479,25 @@ class GraphWidget(QWidget):
                     # Use Unix timestamps for DateAxisItem
                     # Ensure arrays are aligned by resetting index if needed
                     if len(unix_timestamps) != len(y_data):
-                        print(f"[GRAPH_UPDATE] WARNING: Array length mismatch! unix_timestamps={len(unix_timestamps)}, y_data={len(y_data)}")
+                        self._debug(f"[GRAPH_UPDATE] WARNING: Array length mismatch! unix_timestamps={len(unix_timestamps)}, y_data={len(y_data)}")
                         # Reset index to ensure alignment
                         df_reset = df.reset_index(drop=True)
                         y_data = df_reset[sensor_name].to_numpy()
-                        timestamps_reset = pd.to_datetime(df_reset['Timestamp'])
-                        if timestamps_reset.dt.tz is None:
-                            import time
-                            offset_sec = time.altzone if time.daylight else time.timezone
-                            utc_timestamps_reset = timestamps_reset + pd.Timedelta(seconds=offset_sec)
-                            unix_timestamps = utc_timestamps_reset.astype('int64') // 10**9
-                        else:
-                            unix_timestamps = timestamps_reset.astype('int64') // 10**9
+                        unix_timestamps, _valid_mask = self._timestamps_to_unix(df_reset['Timestamp'])
                     
                     x_data = unix_timestamps.to_numpy()
-                    print(f"[GRAPH_UPDATE] Plotting {sensor_name} with timestamps")
-                    self.plot_widget.plot(x=x_data, y=y_data, pen=pen, name=sensor_name)
-                    print(f"[GRAPH] Plotting {sensor_name} with Unix timestamps: {x_data[0]} to {x_data[-1]}")
+                    self._debug(f"[GRAPH_UPDATE] Plotting {sensor_name} with timestamps")
+                    curve = self.plot_widget.plot(x=x_data, y=y_data, pen=pen, name=sensor_name)
+                    self._configure_curve_for_large_data(curve)
+                    self._debug(f"[GRAPH] Plotting {sensor_name} with Unix timestamps: {x_data[0]} to {x_data[-1]}")
                 else:
                     # Plot by index if no timestamps
                     x_data = range(len(y_data))
-                    print(f"[GRAPH_UPDATE] Plotting {sensor_name} by index")
-                    self.plot_widget.plot(x=x_data, y=y_data, pen=pen, name=sensor_name)
+                    self._debug(f"[GRAPH_UPDATE] Plotting {sensor_name} by index")
+                    curve = self.plot_widget.plot(x=x_data, y=y_data, pen=pen, name=sensor_name)
+                    self._configure_curve_for_large_data(curve)
             else:
-                print(f"[GRAPH_UPDATE] Sensor {sensor_name} NOT found in data")
+                self._debug(f"[GRAPH_UPDATE] Sensor {sensor_name} NOT found in data")
 
             # --- Update Stats Table ---
             self.stats_table.setItem(i, 0, QTableWidgetItem(sensor_name))
@@ -354,7 +527,18 @@ class GraphWidget(QWidget):
                 for j in range(2, 6):
                     self.stats_table.setItem(i, j, QTableWidgetItem("N/A"))
         
-        # Set X-axis range to show all data (fixes "All Data" thin line issue)
+        self._has_plotted_data = True
+
+        if previous_range is not None:
+            self.plot_widget.setXRange(previous_range[0][0], previous_range[0][1], padding=0)
+            if sensor_set_changed:
+                self.fit_y_to_view()
+            else:
+                self.plot_widget.setYRange(previous_range[1][0], previous_range[1][1], padding=0)
+            self._last_plotted_sensors = current_plotted_sensors
+            return
+
+        # Set X-axis range to show all data on the first plot only.
         if has_timestamps and unix_timestamps is not None and len(sensors_to_plot) > 0:
             try:
                 # Filter out invalid Unix timestamps (negative values from NaT conversion)
@@ -367,15 +551,17 @@ class GraphWidget(QWidget):
                     if x_max > x_min and (x_max - x_min) > 1:
                         # Set X-axis range to show all data with small padding
                         self.plot_widget.setXRange(x_min, x_max, padding=0.02)
-                        print(f"[GRAPH_UPDATE] Set X-axis range: {x_min} to {x_max} (span: {x_max - x_min} seconds)")
+                        self._debug(f"[GRAPH_UPDATE] Set X-axis range: {x_min} to {x_max} (span: {x_max - x_min} seconds)")
                     else:
-                        print(f"[GRAPH_UPDATE] WARNING: Invalid timestamp range - min={x_min}, max={x_max}")
+                        self._debug(f"[GRAPH_UPDATE] WARNING: Invalid timestamp range - min={x_min}, max={x_max}")
                 else:
-                    print(f"[GRAPH_UPDATE] WARNING: No valid Unix timestamps found (all are negative/NaT)")
+                    self._debug(f"[GRAPH_UPDATE] WARNING: No valid Unix timestamps found (all are negative/NaT)")
             except Exception as e:
                 print(f"[GRAPH_UPDATE] ERROR setting X-axis range: {e}")
                 import traceback
                 traceback.print_exc()
+
+        self._last_plotted_sensors = current_plotted_sensors
 
     def capture_snapshot(self):
         """Captures the current graph view as a snapshot for comparison.
@@ -430,19 +616,9 @@ class GraphWidget(QWidget):
 
         if 'Timestamp' in viewport_data.columns:
             try:
-                # Convert timestamps to Unix for comparison with x_range
-                timestamps = pd.to_datetime(viewport_data['Timestamp'])
-
-                # Handle timezone offset (same as in update_ui)
-                import time
-                if time.daylight:
-                    offset_sec = time.altzone
-                else:
-                    offset_sec = time.timezone
-
-                # Convert to UTC then Unix
-                utc_timestamps = timestamps + pd.Timedelta(seconds=offset_sec)
-                unix_timestamps = utc_timestamps.astype('int64') // 10**9
+                unix_timestamps, valid_mask = self._timestamps_to_unix(viewport_data['Timestamp'])
+                if not valid_mask.all():
+                    viewport_data = viewport_data[valid_mask].copy()
 
                 # Filter to viewport X-range
                 x_min, x_max = x_range
@@ -541,7 +717,7 @@ class GraphWidget(QWidget):
         df = self.data_manager.get_filtered_data()
         if df is not None and 'Timestamp' in df.columns:
             try:
-                timestamps = pd.to_datetime(df['Timestamp']).astype('int64') // 10**9
+                timestamps, _valid_mask = self._timestamps_to_unix(df['Timestamp'])
                 mid_point = (timestamps.min() + timestamps.max()) / 2
                 width = (timestamps.max() - timestamps.min()) * 0.3
                 range_region.setRegion([mid_point - width/2, mid_point + width/2])
@@ -580,7 +756,6 @@ class GraphWidget(QWidget):
         delete_ranges = []
         
         # Process each range region
-        import time
         for range_info in self.range_regions:
             range_region = range_info['region']
             mode = range_info['mode']
@@ -589,15 +764,8 @@ class GraphWidget(QWidget):
             # Convert Unix timestamps to datetime
             if 'Timestamp' in df.columns:
                 try:
-                    if time.daylight:
-                        offset_sec = time.altzone
-                    else:
-                        offset_sec = time.timezone
-                    
-                    start_utc = pd.to_datetime(start_unix, unit='s')
-                    end_utc = pd.to_datetime(end_unix, unit='s')
-                    start_dt = start_utc - pd.Timedelta(seconds=offset_sec)
-                    end_dt = end_utc - pd.Timedelta(seconds=offset_sec)
+                    start_dt = self._unix_to_local_naive(start_unix)
+                    end_dt = self._unix_to_local_naive(end_unix)
                     
                     if mode == 'keep':
                         keep_ranges.append((start_dt, end_dt))

@@ -13,6 +13,15 @@ import diagram_theme as theme
 
 logger = logging.getLogger(__name__)
 
+MANIFOLD_PEN_WIDTH = 2
+
+
+def manifold_pen(color='#888888', width=MANIFOLD_PEN_WIDTH):
+    pen = QPen(QColor(color), width)
+    pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    return pen
+
 # ---------------------------------------------------------------------------
 #  Grid-snap helpers (toggled from the toolbar checkbox in diagram_widget.py)
 # ---------------------------------------------------------------------------
@@ -425,25 +434,27 @@ class BaseComponentItem(QGraphicsRectItem):
                     draw_arrow_out_top(x)
 
             else:
-                # Water-cooled: vertical arrows — water in (bottom, pointing up into), water out (top, pointing up away)
-                center_x = _snap_port_pos(w / 2)
+                # Water-cooled: separate secondary-fluid arrows so they do
+                # not merge visually with the refrigerant centerline.
+                water_in_x = w * 0.25
+                water_out_x = w * 0.75
                 arrow_len = 30
 
                 # Water in: arrow from below, pointing UP into condenser
-                painter.drawLine(QPointF(center_x, h + arrow_len), QPointF(center_x, h))
+                painter.drawLine(QPointF(water_in_x, h + arrow_len), QPointF(water_in_x, h))
                 head_in = QPolygonF([
-                    QPointF(center_x - 5, h + 8),
-                    QPointF(center_x + 5, h + 8),
-                    QPointF(center_x, h),
+                    QPointF(water_in_x - 5, h + 8),
+                    QPointF(water_in_x + 5, h + 8),
+                    QPointF(water_in_x, h),
                 ])
                 painter.drawPolygon(head_in)
 
                 # Water out: arrow from top of condenser, pointing UP away
-                painter.drawLine(QPointF(center_x, 0), QPointF(center_x, -arrow_len))
+                painter.drawLine(QPointF(water_out_x, 0), QPointF(water_out_x, -arrow_len))
                 head_out = QPolygonF([
-                    QPointF(center_x - 5, -arrow_len + 8),
-                    QPointF(center_x + 5, -arrow_len + 8),
-                    QPointF(center_x, -arrow_len),
+                    QPointF(water_out_x - 5, -arrow_len + 8),
+                    QPointF(water_out_x + 5, -arrow_len + 8),
+                    QPointF(water_out_x, -arrow_len),
                 ])
                 painter.drawPolygon(head_out)
 
@@ -1630,7 +1641,7 @@ class TXVComponentItem(QGraphicsPathItem):
         self.update_shape()
     
     def rebuild_ports(self):
-        """Create ports: inlet (top), outlet (bottom), and bulb (center) unless Cap Tube."""
+        """Create inlet/outlet ports and the mechanical bulb only for TXVs."""
         # IMPORTANT: Save pipe connections before clearing ports
         port_connections = {}
         for port_name, port_item in self.ports.items():
@@ -1644,7 +1655,7 @@ class TXVComponentItem(QGraphicsPathItem):
                 port_item.scene().removeItem(port_item)
         self.ports.clear()
 
-        # Determine expansion device type (TXV or Cap Tube)
+        # Determine expansion device type (TXV, Cap Tube, or EEV)
         exp_type = self.component_data.get('properties', {}).get('expansion_device_type', 'TXV')
 
         # Inlet at top (high pressure)
@@ -1660,7 +1671,8 @@ class TXVComponentItem(QGraphicsPathItem):
         self.ports['outlet'] = outlet_port
 
         # Bulb (sensor) only for TXV — Cap Tube has no sensing bulb
-        if exp_type != 'Cap Tube':
+        show_bulb_port = self.component_data.get('properties', {}).get('show_bulb_port', True)
+        if exp_type == 'TXV' and show_bulb_port is not False:
             bulb_def = {'name': 'bulb', 'type': 'sensor', 'fluid_state': 'any', 'pressure_side': 'low', 'position': [0.5, 0.5]}
             bulb_port = PortItem('bulb', bulb_def, self)
             bulb_port.setPos(0, 0)  # Exactly at the junction of the TXV cross
@@ -3734,8 +3746,8 @@ class InstrumentPanelItem(QGraphicsRectItem):
         if not mapped_sensor or not self.data_manager:
             return ""
         val = self.data_manager.get_sensor_value(mapped_sensor)
-        if isinstance(val, (int, float)):
-            return f"{val:.1f}"
+        if hasattr(self.data_manager, "format_sensor_value"):
+            return self.data_manager.format_sensor_value(val)
         return "" if val is None else str(val)
 
     def _tooltip(self, row):
@@ -4287,7 +4299,7 @@ class SplitterComponentItem(BaseComponentItem):
             path.moveTo(px, xbar_y)
             path.lineTo(px, h)
         self._manifold_item = QGraphicsPathItem(path, self)
-        self._manifold_item.setPen(QPen(QColor('#4DA6FF'), 2))
+        self._manifold_item.setPen(manifold_pen())
 
     def rebuild_ports(self):
         for port_item in list(self.ports.values()):
@@ -4364,7 +4376,7 @@ class CombinerComponentItem(BaseComponentItem):
         path.moveTo(w / 2, xbar_y)
         path.lineTo(w / 2, h)
         self._manifold_item = QGraphicsPathItem(path, self)
-        self._manifold_item.setPen(QPen(QColor('#4DA6FF'), 2))
+        self._manifold_item.setPen(manifold_pen())
 
     def rebuild_ports(self):
         for port_item in list(self.ports.values()):

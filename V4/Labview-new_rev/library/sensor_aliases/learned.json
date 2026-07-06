@@ -1,17 +1,24 @@
 {
   "T_txv.lh.in": [
-    "Left TXV Inlet"
+    "L TXV Inlet",
+    "Left TXV Inlet",
+    "TXV 1 inlet"
   ],
   "T_txv.lh.bulb": [
-    "Left TXV Bulb"
+    "L TXV Bulb Temp",
+    "Left TXV Bulb",
+    "TXV Bulb"
   ],
   "T_coil.lh.in.1": [
+    "Coil Inlet 1",
     "Left Coil Inlet 1"
   ],
   "T_coil.lh.in.2": [
+    "Coil Inlet 2",
     "Left Coil Inlet 2"
   ],
   "T_coil.lh.in.3": [
+    "Coil Inlet 3",
     "Left Coil Inlet 3"
   ],
   "T_coil.lh.in.4": [
@@ -48,9 +55,12 @@
     "CTR Coil Inlet 6"
   ],
   "T_txv.rh.in": [
-    "Right TXV Inlet"
+    "R TXV Inlet",
+    "Right TXV Inlet",
+    "TXV 2 inlet"
   ],
   "T_txv.rh.bulb": [
+    "R TXV Bulb Temp",
     "Right TXV Bulb"
   ],
   "T_coil.rh.in.1": [
@@ -72,22 +82,30 @@
     "Right Coil Inlet 6"
   ],
   "T_cond.in": [
+    "Into condeser",
     "Ref Temp in HeatX"
   ],
   "T_cond.out": [
-    "Ref Temp out HeatX"
+    "Out of condenser",
+    "Ref Temp out HeatX",
+    "Ref temp out HeatX"
   ],
   "T_disc.out": [
-    "Discharge line from Comp"
+    "Discharge Out of Comp",
+    "Discharge line from Comp",
+    "Discharge line from comp"
   ],
   "T_suc.in": [
+    "Suction into Comp",
     "Suction line into Comp"
   ],
   "P_suc": [
-    "Suction Pressure"
+    "Suction Pressure",
+    "Suction Presure"
   ],
   "P_disc": [
-    "Discharge Pressure"
+    "Discharge Pressure",
+    "Liquid Pressure"
   ],
   "f_defrost": [
     "Defrost case 1"
@@ -96,37 +114,50 @@
     "Always off"
   ],
   "T_amb.dry.a": [
-    "Ambient Dry Bulb Ta"
+    "Ambient Dry Bulb Ta",
+    "Ambient dry bulbTa"
   ],
   "T_amb.dry.b": [
-    "Ambient Dry Bulb Tb"
+    "Ambient Dry Bulb Tb",
+    "Ambient dry bulbTb"
   ],
   "T_amb.wet": [
-    "Ambient Wet Bulb"
+    "Ambient Wet Bulb",
+    "Ambient wet bulb"
   ],
   "T_ceil": [
+    "Ceiling",
     "Ceiling Temp"
   ],
   "T_wall.front": [
+    "Front Wall",
     "Front Wall Temp"
   ],
   "T_wall.right": [
+    "Right Wall",
     "Right Wall Temp"
   ],
   "T_wall.left": [
+    "Left Wall",
     "Left Wall Temp"
   ],
   "T_wall.rear": [
+    "Rear Wall",
     "Rear Wall Temp"
   ],
   "T_air.disc.s1": [
-    "Discharge Air 2 in LE"
+    "Discharge Air 2 in LE",
+    "Discharge air 2 in LE",
+    "Primary Disch Air 2in LE"
   ],
   "T_air.disc.s2": [
-    "Discharge Air 12 in LE"
+    "Discharge Air 12 in LE",
+    "Discharge air 12 in LE",
+    "Primary Disch Air 12in LE"
   ],
   "T_air.disc.s3": [
-    "Discharge Air 24 in LE"
+    "Discharge Air 24 in LE",
+    "Primary Disch Air 24in LE"
   ],
   "T_air.disc.s4": [
     "Discharge Air 42 in LE"
@@ -135,7 +166,9 @@
     "Discharge Air 54 in LE"
   ],
   "T_air.disc.s6": [
-    "Discharge Air Center"
+    "Discharge Air Center",
+    "Discharge air center",
+    "Primary Disch Air CTR"
   ],
   "T_air.disc.s7": [
     "Discharge Air 54 in RE"
@@ -144,22 +177,35 @@
     "Discharge Air 42 in RE"
   ],
   "T_air.disc.s9": [
-    "Discharge Air 24 in RE"
+    "Discharge Air 24 in RE",
+    "Primary Disch Air 24in RE"
   ],
   "T_air.disc.s10": [
-    "Discharge Air 12in RE"
+    "Discharge Air 12in RE",
+    "Discharge air 12in RE",
+    "Primary Disch Air 12in RE"
   ],
   "T_air.disc.s11": [
-    "Discharge Air 2 in RE"
+    "Discharge Air 2 in RE",
+    "Discharge air 2 in RE",
+    "Primary Disch Air 2in RE"
   ],
   "T_air.sec.s1": [
-    "Secondary Air 2 in LE"
+    "Sec discharge air 2 in LE",
+    "Secondary Air 2 in LE",
+    "Secondary Disch Air 2in LE",
+    "Seconday Air 24 in LE"
   ],
   "T_air.sec.s2": [
-    "Secondary Air 12 in LE"
+    "Sec discharge air 12 in LE",
+    "Secondary Air 12 in LE",
+    "Secondary Disch Air 12in LE",
+    "Seconday Air Center"
   ],
   "T_air.sec.s3": [
-    "Secondary Air 24 in LE"
+    "Secondary  Disch Air 24in LE",
+    "Secondary Air 24 in LE",
+    "Seconday Air 24 in RE"
   ],
   "T_air.sec.s4": [
     "Secondary Air 42 in LE"
@@ -168,6 +214,8 @@
     "Secondary Air 54 in LE"
   ],
   "T_air.sec.s6": [
+    "Sec discharge air center",
+    "Secondary  Disch Air CTR",
     "Secondary Air Center"
   ],
   "T_air.sec.s7": [
@@ -177,22 +225,32 @@
     "Secondary Air 42 in RE"
   ],
   "T_air.sec.s9": [
+    "Secondary  Disch Air 24in RE",
     "Secondary Air 24 in RE"
   ],
   "T_air.sec.s10": [
+    "Sec discharge air 12 in RE",
+    "Secondary  Disch Air 12in RE",
     "Secondary Air 12in RE"
   ],
   "T_air.sec.s11": [
+    "Sec discharge air 2 in RE",
+    "Secondary  Disch Air 2in RE",
     "Secondary Air 2 in RE"
   ],
   "T_air.ret.s1": [
-    "Return Air 2 in LE"
+    "Return Air 2 in LE",
+    "Return Air 2in LE",
+    "Return air 2 in LE"
   ],
   "T_air.ret.s2": [
-    "Return Air 12 in LE"
+    "Return Air 12 in LE",
+    "Return Air 12in LE",
+    "Return air 12in LE"
   ],
   "T_air.ret.s3": [
-    "Return Air 24 in LE"
+    "Return Air 24 in LE",
+    "Return Air 24in LE"
   ],
   "T_air.ret.s4": [
     "Return Air 42 in LE"
@@ -201,7 +259,9 @@
     "Return Air 54 in LE"
   ],
   "T_air.ret.s6": [
-    "Return Air Center"
+    "Return Air CTR",
+    "Return Air Center",
+    "Return air center"
   ],
   "T_air.ret.s7": [
     "Return Air 54 in RE"
@@ -210,24 +270,33 @@
     "Return Air 42 in RE"
   ],
   "T_air.ret.s9": [
-    "Return Air 24 in RE"
+    "Return Air 24 in RE",
+    "Return Air 24in RE"
   ],
   "T_liq.main": [
-    "Into Main Distributor"
+    "Into Main Distributor",
+    "Liquid into main distributor"
   ],
   "T_dist.lh.in": [
-    "Into Left Distrubutor"
+    "Into Distrubutor",
+    "Into Left Distrubutor",
+    "Into distributor 1"
   ],
   "T_dist.ctr.in": [
     "Into CTR Distrubutor"
   ],
   "T_dist.rh.in": [
-    "Into Right Distributor"
+    "Into Right Distributor",
+    "Into distributor 2"
   ],
   "T_air.fan_in.lh.LE": [
+    "Air In L Coil 6in LE",
+    "Air in evap 6 in LE",
     "Air in left evap 6 in LE"
   ],
   "T_air.fan_in.lh.RE": [
+    "Air In L Coil 6in RE",
+    "Air in evap 6 in RE",
     "Air in left evap 6 in RE"
   ],
   "T_air.fan_in.ctr.LE": [
@@ -237,21 +306,31 @@
     "Air in ctr evap 6 in RE"
   ],
   "T_air.fan_in.rh.LE": [
+    "Air in R Coil 6in LE",
     "Air in right evap 6 in LE"
   ],
   "T_air.fan_in.rh.RE": [
+    "Air in R Coil 6in RE",
     "Air in right evap 6 in RE"
   ],
   "T_air.fan_off.lh.LE": [
+    "Air off L Coil 6in LE",
+    "Air off evap 6 in LE",
     "Air off left evap 6 in LE"
   ],
   "T_air.fan_off.lh.RE": [
+    "Air off L Coil 6in RE",
+    "Air off evap 6 in RE",
     "Air off left evap 6 in RE"
   ],
   "T_air.fan_off.rh.LE": [
+    "Air off R Coil 6in LE",
+    "Air off Right evap 6 in LE",
     "Air off right evap 6 in LE"
   ],
   "T_air.fan_off.rh.RE": [
+    "Air off R Coil 6in RE",
+    "Air off Right evap 6 in RE",
     "Air off right evap 6 in RE"
   ],
   "T_prod.top.LE.r": [
@@ -279,9 +358,11 @@
     "PS Top shelf RE Front"
   ],
   "T_prod.r2.LE.r": [
+    "PS 2nd shelf LE Rear",
     "PS Second shelf LE Rear"
   ],
   "T_prod.r2.LE.f": [
+    "PS 2nd shelf LE Front",
     "PS Second shelf LE Front"
   ],
   "T_prod.r2.LE48.r": [
@@ -297,15 +378,19 @@
     "PS Second shelf 48 RE Front"
   ],
   "T_prod.r2.RE.r": [
+    "PS 2nd shelf RE Rear",
     "PS Second shelf RE Rear"
   ],
   "T_prod.r2.RE.f": [
+    "PS 2nd shelf RE Front",
     "PS Second shelf RE Front"
   ],
   "T_prod.r3.LE.r": [
+    "PS 3rd shelf LE Rear",
     "PS Third shelf LE Rear"
   ],
   "T_prod.r3.LE.f": [
+    "PS 3rd shelf LE Front",
     "PS Third shelf LE Front"
   ],
   "T_prod.r3.LE48.r": [
@@ -321,15 +406,19 @@
     "PS Third shelf 48 RE Front"
   ],
   "T_prod.r3.RE.r": [
+    "PS 3rd shelf RE Rear",
     "PS Third shelf RE Rear"
   ],
   "T_prod.r3.RE.f": [
+    "PS 3rd shelf RE Front",
     "PS Third shelf RE Front"
   ],
   "T_prod.r4.LE.r": [
+    "PS 4th shelf LE Rear",
     "PS Fourth shelf LE Rear"
   ],
   "T_prod.r4.LE.f": [
+    "PS 4th shelf LE Front",
     "PS Fourth shelf LE Front"
   ],
   "T_prod.r4.LE48.r": [
@@ -345,9 +434,11 @@
     "PS Fourth shelf 48 RE Front"
   ],
   "T_prod.r4.RE.r": [
+    "PS 4th shelf RE Rear",
     "PS Fourth shelf RE Rear"
   ],
   "T_prod.r4.RE.f": [
+    "PS 4th shelf RE Front",
     "PS Fourth shelf RE Front"
   ],
   "T_prod.btm.LE.r": [
@@ -399,7 +490,8 @@
     "Run Time"
   ],
   "calc.SH.lh": [
-    "Left S.H."
+    "Left S.H.",
+    "S.H."
   ],
   "calc.SH.ctr": [
     "CTR S.H."
@@ -410,34 +502,269 @@
   "T_evap_misc": [
     "Evap"
   ],
-  "calc.SC_cond": [
-    "Liqcond"
-  ],
   "W_case.total": [
     "Total Case Watts"
   ],
   "W_comp.total": [
+    "Total Comp Watts",
     "Total Compressor Watts"
   ],
-  "calc.SC_txv.ctr": [
-    "Total Case Amps"
-  ],
   "calc.SC_txv.lh": [
-    "Total Case Amps"
+    "subcooling LH"
   ],
   "m_dot_meas": [
-    "Flowmeter"
+    "Flowmeter",
+    "Total Water Flow Meter"
   ],
   "T_coil.lh.out.1": [
-    "Center Coil Outlet 1"
-  ],
-  "T_coil.ctr.out.1": [
-    "Center Coil Outlet 2"
+    "Coil Outlet 1",
+    "Left Coil Outlet 1"
   ],
   "T_w.in": [
+    "Water in HE",
     "Water in HeatX"
   ],
   "T_w.out": [
-    "Water out  HeatX"
+    "Water out  HeatX",
+    "Water out HE",
+    "Water out HeatX"
+  ],
+  "T_air.ret.s11": [
+    "Return Air 2in RE"
+  ],
+  "qc": [
+    "BTU"
+  ],
+  "m_dot": [
+    "Total Flow"
+  ],
+  "T_prod.avg": [
+    "AVG Prod Temp",
+    "AVG Product temp"
+  ],
+  "T_prod.r5.LE.r": [
+    "PS Fifth shelf LE Rear"
+  ],
+  "T_prod.r5.LE.f": [
+    "PS Fifth shelf LE Front"
+  ],
+  "T_prod.r5.LE48.r": [
+    "PS Fifth shelf 48 LE Rear"
+  ],
+  "T_prod.r5.LE48.f": [
+    "PS Fifth shelf 48 LE Front"
+  ],
+  "T_prod.r5.RE48.r": [
+    "PS Fifth shelf 48 RE Rear"
+  ],
+  "T_prod.r5.RE48.f": [
+    "PS Fifth shelf 48 RE Front"
+  ],
+  "T_prod.r5.RE.r": [
+    "PS Fifth shelf RE Rear"
+  ],
+  "T_prod.r5.RE.f": [
+    "PS Fifth shelf RE Front"
+  ],
+  "rpm": [
+    "Compressor RPM"
+  ],
+  "T_air.disc.LE36": [
+    "Discharge Air 36 in LE",
+    "Primary Disch Air 36in LE"
+  ],
+  "T_air.disc.RE36": [
+    "Discharge Air 36 in RE",
+    "Primary Disch Air 36in RE"
+  ],
+  "T_air.sec.LE36": [
+    "Secondary Air 36 in LE",
+    "Secondary Disch Air 36in LE"
+  ],
+  "T_air.sec.RE36": [
+    "Secondary  Disch Air 36in RE",
+    "Secondary Air 36 in RE"
+  ],
+  "T_air.ret.LE36": [
+    "Return Air 36 in LE",
+    "Return Air 36in LE"
+  ],
+  "T_air.ret.RE36": [
+    "Return Air 36 in RE",
+    "Return Air 36in RE"
+  ],
+  "T_prod.top.Ctr.r": [
+    "PS Top shelf CTR Rear"
+  ],
+  "T_prod.top.Ctr.f": [
+    "PS Top shelf CTR Front"
+  ],
+  "T_prod.r2.Ctr.r": [
+    "PS 2nd shelf CTR Rear",
+    "PS Second shelf CTR Rear"
+  ],
+  "T_prod.r2.Ctr.f": [
+    "PS 2nd shelf CTR Front",
+    "PS Second shelf CTR Front"
+  ],
+  "T_prod.r3.Ctr.r": [
+    "PS 3rd shelf CTR Rear",
+    "PS Third shelf CTR Rear"
+  ],
+  "T_prod.r3.Ctr.f": [
+    "PS 3rd shelf CTR Front",
+    "PS Third shelf CTR Front"
+  ],
+  "T_prod.r4.Ctr.r": [
+    "PS 4th shelf CTR Rear",
+    "PS Fourth shelf CTR Rear"
+  ],
+  "T_prod.r4.Ctr.f": [
+    "PS 4th shelf CTR Front",
+    "PS Fourth shelf CTR Front"
+  ],
+  "T_prod.btm.Ctr.r": [
+    "PS BC CTR Rear"
+  ],
+  "T_prod.btm.Ctr.f": [
+    "PS BC CTR Front"
+  ],
+  "T_coil.lh.out.2": [
+    "Coil Outlet 2",
+    "Left Coil Out 2"
+  ],
+  "T_coil.lh.out.3": [
+    "Coil Outlet 3",
+    "Left Coil Out 3"
+  ],
+  "T_filter_drier.out": [
+    "Case inlet after filter drier"
+  ],
+  "T_filter_drier.in": [
+    "Inlet of filter drier",
+    "inlet of filter drier"
+  ],
+  "V_case.L1": [
+    "L1 Volts"
+  ],
+  "A_case.L1": [
+    "L1 Amps"
+  ],
+  "W_case.L1": [
+    "L1 Watts"
+  ],
+  "V_case.L2": [
+    "L2 Volts"
+  ],
+  "A_case.L2": [
+    "L2 Amps"
+  ],
+  "W_case.L2": [
+    "L2 Watts"
+  ],
+  "V_case.L3": [
+    "L3 Volts"
+  ],
+  "A_case.L3": [
+    "L3 Amps"
+  ],
+  "W_case.L3": [
+    "L3 Watts"
+  ],
+  "V_case.total": [
+    "Total Volts"
+  ],
+  "A_case.total": [
+    "Total Amps"
+  ],
+  "V_aux.120v": [
+    "120V Volts"
+  ],
+  "A_aux.120v": [
+    "120V Amps"
+  ],
+  "W_aux.120v": [
+    "120V Watts"
+  ],
+  "T_air.avg.in": [
+    "AVG Air In"
+  ],
+  "T_air.avg.off": [
+    "AVG Air Off"
+  ],
+  "W_case.L1.total": [
+    "Total L1 Watts"
+  ],
+  "W_case.L2.total": [
+    "Total L2 Watts"
+  ],
+  "W_case.L3.total": [
+    "Total L3 Watts"
+  ],
+  "T_coil.ctr.out": [
+    "CTR Coil Outlet"
+  ],
+  "T_coil.rh.out": [
+    "R Coil Outlet",
+    "Right Coil Outlet"
+  ],
+  "W_total": [
+    "Total Watts"
+  ],
+  "T_coil.lh.out": [
+    "L Coil Outlet"
+  ],
+  "T_coil.lh.in": [
+    "L Coil Inlet"
+  ],
+  "T_coil.rh.in": [
+    "R Coil Inlet",
+    "Right Coil Inlet"
+  ],
+  "T_txv_split.in": [
+    "Into TXV Split"
+  ],
+  "T_defrost.term.lh": [
+    "L Defrost Term Sensor"
+  ],
+  "T_defrost.term.rh": [
+    "R Defrost Term Sensor"
+  ],
+  "T_air.fan_off.lh.avg": [
+    "L DA Sensor"
+  ],
+  "T_air.fan_off.rh.avg": [
+    "R DA Sensor"
+  ],
+  "T_coil.common.out": [
+    "Coil Outlet Evap",
+    "Common coil outlet"
+  ],
+  "calc.SC_txv.rh": [
+    "Subcooling RH"
+  ],
+  "T_txv_split.out.lh": [
+    "Out of TXV Split L"
+  ],
+  "T_txv_split.out.rh": [
+    "Out of TXV Split R"
+  ],
+  "v_air.fpm": [
+    "Air Velocities FPM"
+  ],
+  "T_coil.ctr.in": [
+    "CTR Coil Inlet"
+  ],
+  "calc.SC_cond": [
+    "Liqcond"
+  ],
+  "T_air.ret.s10": [
+    "Return air 12 in RE"
+  ],
+  "T_prod.r5.Ctr.r": [
+    "PS Fifth shelf CTR Rear"
+  ],
+  "T_prod.r5.Ctr.f": [
+    "PS Fifth shelf CTR Front"
   ]
 }

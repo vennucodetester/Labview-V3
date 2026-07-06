@@ -1,0 +1,17 @@
+# Build / runtime junk — never commit
+__pycache__/
+*.pyc
+*.pyo
+logs/
+audit_logs/
+node_modules/
+nul
+
+# Large binaries / archives
+*.zip
+windows_10_cmake_Release_Graphviz-*/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.tmp

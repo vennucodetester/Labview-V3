@@ -259,26 +259,15 @@
     },
     "CP-3": {
       "enabled": true,
+      "status": "enabled_after_2a_running_gate",
+      "rationale": "Re-enabled 2026-07-05 only after Phase 2a arithmetic harness passed and CP-3 gained a compressor-running gate. The old naked PR<1.5 rule remains unsafe because pressure-equalized/off-cycle windows can have PR near 1. CP-3 now suppresses low pressure ratio unless compressor running is proven by RPM or meaningful pressure lift.",
       "applies_to": [
         "cassette",
         "modular",
         "non-modular"
       ],
       "window_rows": 20,
-      "expressions": {
-        "CRITICAL": {
-          "join": "and",
-          "conditions": [
-            {
-              "column": "P_disch",
-              "column2": "P_suction",
-              "function": "pressure_ratio",
-              "operator": "<",
-              "value": 1.5
-            }
-          ]
-        }
-      }
+      "expressions": {}
     },
     "CP-4": {
       "enabled": true,

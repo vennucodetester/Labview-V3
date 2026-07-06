@@ -473,10 +473,19 @@ class CalculationAuditDialog(QDialog):
         for lbl in labels:
             ab   = module_abbrev(lbl)
             ab_u = module_abbrev(lbl, upper=True)
+            status = row_data.get(f'S.H_{ab} check')
+            if status is None or status == "" or (isinstance(status, float) and math.isnan(status)):
+                status_text = "N/A"
+            else:
+                status_text = str(status)
+            status_class = "good" if status_text == "OK" else ("warning" if status_text == "CHECK" else "")
             rows.append(
                 f"<tr>"
                 f"<td>{ab_u}</td>"
                 f"<td>{safe_get(f'S.H_{ab} coil')}</td>"
+                f"<td>{safe_get(f'S.H_{ab} lab')}</td>"
+                f"<td>{safe_get(f'S.H_{ab} delta')}</td>"
+                f"<td class=\"{status_class}\">{status_text}</td>"
                 f"<td>{safe_get(coil_outlet_key(lbl))}</td>"
                 f"<td>{safe_get(f'H_coil {ab}')}</td>"
                 f"</tr>"
@@ -663,7 +672,8 @@ class CalculationAuditDialog(QDialog):
             html = f"""<html><head>{CSS}</head><body>
             <h3>🌡️ Circuit Superheat</h3>
             <table>
-            <tr><th>Circuit</th><th>Superheat (°F)</th>
+            <tr><th>Circuit</th><th>Computed SH (°F)</th>
+                <th>Lab SH (°F)</th><th>Delta (°F)</th><th>Check</th>
                 <th>Evap Outlet Temp (°F)</th><th>Enthalpy (kJ/kg)</th></tr>
             {circuit_sh_rows}
             </table>
@@ -718,7 +728,8 @@ class CalculationAuditDialog(QDialog):
 
             <h3>🌡️ Circuit Superheat</h3>
             <table>
-            <tr><th>Circuit</th><th>Superheat (°F)</th>
+            <tr><th>Circuit</th><th>Computed SH (°F)</th>
+                <th>Lab SH (°F)</th><th>Delta (°F)</th><th>Check</th>
                 <th>Evap Outlet Temp (°F)</th><th>Enthalpy (kJ/kg)</th></tr>
             {circuit_sh_rows}
             </table>
@@ -972,43 +983,6 @@ class CalculationsWidget(QWidget):
     def run_calculation(self):
         """Run the full batch calculation using the new unified engine."""
 
-        # SOFT WARNING: Check for rated inputs
-        # If missing, calculation will skip mass flow and capacity calculations
-        required_fields = [
-            'gpm_water',
-        ]
-
-        rated_inputs = self.data_manager.rated_inputs
-        missing_fields = []
-
-        for field in required_fields:
-            value = rated_inputs.get(field)
-            if value is None or value == 0.0:
-                missing_fields.append(field)
-
-        if missing_fields:
-            # Show user-friendly field names
-            field_labels = {
-                'gpm_water': 'Water Flow Rate (GPM)',
-            }
-
-            missing_labels = [field_labels.get(f, f) for f in missing_fields]
-
-            # SOFT WARNING - Allow user to continue
-            reply = QMessageBox.question(
-                self,
-                "Incomplete System Parameters",
-                "Some system parameters are missing:\n\n" +
-                "\n".join(f"• {label}" for label in missing_labels) +
-                "\n\nMass flow and cooling capacity calculations will be skipped.\n"
-                "Other calculations will proceed normally.\n\n"
-                "Continue anyway?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
-            )
-
-            if reply == QMessageBox.StandardButton.No:
-                return  # User chose to stop
-
         def _set_status(msg, color='blue'):
             self.status_label.setText(msg)
             self.status_label.setStyleSheet(f"color: {color}; font-size: 10pt;")
@@ -1031,6 +1005,10 @@ class CalculationsWidget(QWidget):
                 QMessageBox.warning(self, "No Data", "Please load a CSV file first.")
                 return
 
+            if not self._ensure_required_calculation_inputs(input_df):
+                _set_status("Calculation cancelled - approximate inputs required.", 'orange')
+                return
+
             print(f"[CALCULATIONS] Starting calculation on {len(input_df)} rows...")
             _set_status(f"⏳ Step 2/4: Running thermodynamic calculations ({len(input_df)} rows)…")
 
@@ -1038,9 +1016,12 @@ class CalculationsWidget(QWidget):
             from calculation_orchestrator import run_batch_processing
             processed_df = run_batch_processing(self.data_manager, input_df)
 
-            # 3. Check for errors
-            if 'error' in processed_df.columns:
-                error_msg = processed_df['error'].iloc[0] if len(processed_df) > 0 else "Unknown error"
+            # 3. Check for real row errors. An all-NaN error column is not fatal.
+            real_errors = self._real_calculation_errors(processed_df)
+            if real_errors:
+                error_msg = real_errors[0]
+                if len(real_errors) > 1:
+                    error_msg += f"\n\n{len(real_errors) - 1} additional row error(s) also occurred."
                 _set_status(f"❌ Error: {error_msg}", 'red')
                 QMessageBox.critical(
                     self,
@@ -1077,17 +1058,32 @@ class CalculationsWidget(QWidget):
                     hidden_cols += [
                         f'h_2b-{_ab}', f'h_3a-{_ab}', f'h_4a-{_ab}',
                         f'h_4b_{_u}-{_ab}', f'h_2a_{_u}-{_ab}',
+                        f'S.H_{_ab} lab', f'S.H_{_ab} delta', f'S.H_{_ab} check',
+                        f'D.S.H-{_ab}',
                     ]
                     hidden_cols += [f'{c}-{_ab}' for c in _perf_cols]
             else:
                 # Shared: common h-columns + per-module coil enthalpies
                 hidden_cols = ['h_3a', 'h_4a', 'h_2b'] + list(_perf_cols)
                 for _lbl in _labels:
+                    _ab = _mab(_lbl)
                     _u = _mab(_lbl, upper=True)
-                    hidden_cols += [f'h_4b_{_u}', f'h_2a_{_u}']
+                    hidden_cols += [
+                        f'h_4b_{_u}', f'h_2a_{_u}',
+                        f'S.H_{_ab} lab', f'S.H_{_ab} delta', f'S.H_{_ab} check',
+                    ]
+                hidden_cols.append('D.S.H')
             for col in hidden_cols:
                 if col not in expected_cols and col in processed_df.columns:
                     expected_cols.append(col)
+
+            # Preserve every calculated diagram callout column. Otherwise the
+            # stable-table reindex can drop values that Analysis needs even
+            # though the calculation engine produced them.
+            for sensor in (self.data_manager.diagram_model.get('custom_sensors') or {}).values():
+                calc_key = sensor.get('calc_key')
+                if calc_key and calc_key not in expected_cols and calc_key in processed_df.columns:
+                    expected_cols.append(calc_key)
             
             # Reindex to ensure all expected columns exist (adds NaN for missing, keeps existing)
             processed_df = processed_df.reindex(columns=expected_cols)
@@ -1112,6 +1108,66 @@ class CalculationsWidget(QWidget):
             traceback.print_exc()
             _set_status(f"❌ Error: {str(e)}", 'red')
             QMessageBox.critical(self, "Calculation Error", f"An error occurred:\n\n{str(e)}")
+
+    def _has_measured_water_gpm(self, df) -> bool:
+        if df is None or df.empty:
+            return False
+        columns = set(df.columns)
+        normalized = {str(c).strip().lower(): c for c in df.columns}
+        roles = (getattr(self.data_manager, 'diagram_model', {}) or {}).get('sensor_roles', {}) or {}
+        for role_key, mapped_name in roles.items():
+            if not str(role_key).endswith('.water_flow_gpm') or not mapped_name:
+                continue
+            mapped = str(mapped_name).strip()
+            if mapped in columns or mapped.lower() in normalized:
+                return True
+        return False
+
+    @staticmethod
+    def _real_calculation_errors(processed_df) -> list[str]:
+        if processed_df is None or 'error' not in processed_df.columns:
+            return []
+        errors = []
+        for value in processed_df['error'].tolist():
+            if pd.isna(value):
+                continue
+            text = str(value).strip()
+            if not text or text.lower() in {'nan', 'none'}:
+                continue
+            errors.append(text)
+        return errors
+
+    def _ensure_required_calculation_inputs(self, df) -> bool:
+        rated_inputs = dict(getattr(self.data_manager, 'rated_inputs', {}) or {})
+        gpm = rated_inputs.get('gpm_water')
+        if self._has_measured_water_gpm(df):
+            return True
+        if gpm not in (None, 0, 0.0, ''):
+            return True
+
+        dialog = InputDialog(
+            self,
+            title="Approximate Values Needed for Calculations",
+            instructions=(
+                "This dataset does not have a mapped condenser water-flow sensor, "
+                "so calculations need an approximate water flow value before they run.\n\n"
+                "Enter the best available GPM from the setup sheet, balancing valve, "
+                "flow meter, or design estimate. The value is saved for this session "
+                "and used for mass-flow and capacity calculations."
+            ),
+            required_fields=['gpm_water'],
+        )
+        dialog.set_data(rated_inputs)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return False
+
+        new_data = dialog.get_data()
+        rated_inputs.update({k: v for k, v in new_data.items() if v is not None})
+        self.data_manager.rated_inputs = rated_inputs
+        self.status_label.setText("Approximate calculation inputs saved. Running calculations.")
+        self.status_label.setStyleSheet("color: green; font-size: 10pt;")
+        QApplication.processEvents()
+        return True
 
     def on_apply_filter(self):
         """Store threshold from UI and re-run calculation."""
@@ -1668,9 +1724,11 @@ class CalculationsWidget(QWidget):
         if h_3a is None and t_3a is not None and not math.isnan(t_3a):
             if p_disch_psig is not None and not math.isnan(p_disch_psig):
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_3a = PropsSI('H', 'T', (t_3a + 459.67) * 5.0 / 9.0,
-                                   'P', (p_disch_psig + 14.7) * 6894.76, 'R290') / 1000
+                    from calculation_engine import safe_tp_property
+                    h_3a = safe_tp_property(
+                        'H', (t_3a + 459.67) * 5.0 / 9.0,
+                        (p_disch_psig + 14.7) * 6894.76, 'R290',
+                        saturated_quality=1) / 1000
                 except Exception:
                     pass
 
@@ -1706,9 +1764,11 @@ class CalculationsWidget(QWidget):
         if h_4a is None and t_4a is not None and not math.isnan(t_4a):
             if p_disch_psig is not None and not math.isnan(p_disch_psig):
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_4a = PropsSI('H', 'T', (t_4a + 459.67) * 5.0 / 9.0,
-                                   'P', (p_disch_psig + 14.7) * 6894.76, 'R290') / 1000
+                    from calculation_engine import safe_tp_property
+                    h_4a = safe_tp_property(
+                        'H', (t_4a + 459.67) * 5.0 / 9.0,
+                        (p_disch_psig + 14.7) * 6894.76, 'R290',
+                        saturated_quality=0) / 1000
                 except Exception:
                     pass
 
@@ -1751,9 +1811,11 @@ class CalculationsWidget(QWidget):
             if t_4b_f is not None and not math.isnan(t_4b_f) and \
                p_d is not None and not math.isnan(p_d):
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_jkg = PropsSI('H', 'T', (t_4b_f + 459.67) * 5/9,
-                                    'P', (p_d + 14.7) * 6894.76, 'R290')
+                    from calculation_engine import safe_tp_property
+                    h_jkg = safe_tp_property(
+                        'H', (t_4b_f + 459.67) * 5/9,
+                        (p_d + 14.7) * 6894.76, 'R290',
+                        saturated_quality=0)
                     return h_jkg / 1000
                 except Exception:
                     pass
@@ -1850,9 +1912,11 @@ class CalculationsWidget(QWidget):
             p_disch_psig_s6 = get_value_logged(_p_disch_col)
             if t_3a_f is not None and p_disch_psig_s6 is not None:
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_3a = PropsSI('H', 'T', (t_3a_f + 459.67) * 5.0 / 9.0,
-                                   'P', (p_disch_psig_s6 + 14.7) * 6894.76, 'R290') / 1000
+                    from calculation_engine import safe_tp_property
+                    h_3a = safe_tp_property(
+                        'H', (t_3a_f + 459.67) * 5.0 / 9.0,
+                        (p_disch_psig_s6 + 14.7) * 6894.76, 'R290',
+                        saturated_quality=1) / 1000
                     with open(log_file, 'a') as f:
                         f.write(f"  h_3a CALCULATED from T_3a={t_3a_f:.2f}°F, P_disch={p_disch_psig_s6:.2f} PSIG = {h_3a:.3f} kJ/kg\n")
                 except Exception as e:
@@ -1876,9 +1940,11 @@ class CalculationsWidget(QWidget):
             p_disch_psig_s6 = get_value_logged(_p_disch_col)
             if t_4a_f is not None and p_disch_psig_s6 is not None:
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_4a = PropsSI('H', 'T', (t_4a_f + 459.67) * 5.0 / 9.0,
-                                   'P', (p_disch_psig_s6 + 14.7) * 6894.76, 'R290') / 1000
+                    from calculation_engine import safe_tp_property
+                    h_4a = safe_tp_property(
+                        'H', (t_4a_f + 459.67) * 5.0 / 9.0,
+                        (p_disch_psig_s6 + 14.7) * 6894.76, 'R290',
+                        saturated_quality=0) / 1000
                     with open(log_file, 'a') as f:
                         f.write(f"  h_4a CALCULATED from T_4a={t_4a_f:.2f}°F, P_disch={p_disch_psig_s6:.2f} PSIG = {h_4a:.3f} kJ/kg\n")
                 except Exception as e:
@@ -1903,9 +1969,11 @@ class CalculationsWidget(QWidget):
             p_suc_psig_s6 = get_value_logged(_p_suc_col)
             if t_2b_f is not None and p_suc_psig_s6 is not None:
                 try:
-                    from CoolProp.CoolProp import PropsSI
-                    h_2b = PropsSI('H', 'T', (t_2b_f + 459.67) * 5.0 / 9.0,
-                                   'P', (p_suc_psig_s6 + 14.7) * 6894.76, 'R290') / 1000
+                    from calculation_engine import safe_tp_property
+                    h_2b = safe_tp_property(
+                        'H', (t_2b_f + 459.67) * 5.0 / 9.0,
+                        (p_suc_psig_s6 + 14.7) * 6894.76, 'R290',
+                        saturated_quality=1) / 1000
                     with open(log_file, 'a') as f:
                         f.write(f"  h_2b CALCULATED from T_2b={t_2b_f:.2f}°F, P_suction={p_suc_psig_s6:.2f} PSIG = {h_2b:.3f} kJ/kg\n")
                 except Exception as e:

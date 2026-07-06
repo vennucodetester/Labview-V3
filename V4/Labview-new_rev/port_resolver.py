@@ -20,6 +20,10 @@ def enumerate_ports_for_component(component_type: str, component_props: Dict[str
     # Static ports
     for p in schema.get('ports', []) or []:
         name = p.get('name')
+        if component_type == 'TXV' and name == 'bulb':
+            exp_type = str(component_props.get('expansion_device_type') or 'TXV').lower()
+            if exp_type != 'txv' or component_props.get('show_bulb_port', True) is False:
+                continue
         if name:
             ports.append(name)
 
@@ -154,12 +158,13 @@ def format_port_label(component_type: str, component_props: Dict[str, Any], port
         if port_name.startswith('outlet_'):
             idx = port_name.split('_')[-1]
             return f"{side}Distributor Outlet {idx}".strip()
-    if component_type == 'TXV':
+    if component_type in ('TXV', 'CapTube', 'EEV'):
+        device = {'CapTube': 'Cap Tube', 'EEV': 'EEV'}.get(component_type, 'TXV')
         if port_name == 'inlet':
-            return f"TXV {side}Inlet".replace('  ', ' ').strip()
+            return f"{device} {side}Inlet".replace('  ', ' ').strip()
         if port_name == 'outlet':
-            return f"TXV {side}Outlet".replace('  ', ' ').strip()
-        if port_name == 'bulb':
+            return f"{device} {side}Outlet".replace('  ', ' ').strip()
+        if component_type == 'TXV' and port_name == 'bulb':
             return f"TXV {side}Bulb".replace('  ', ' ').strip()
     if component_type == 'Compressor':
         if port_name == 'inlet':

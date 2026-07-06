@@ -534,7 +534,32 @@ def build_bare_minimum_diagram(request: dict) -> dict:
                     'end_component_id':   dist_id, 'end_port':   'inlet',
                     'route': [[mod_x, txv_out_y], [mod_x, DIST_Y]],
                 }
-            # header → suction collector
+            # Per-circuit distributor -> evaporator and evaporator -> header
+            # links close the gap between manifold stubs and evaporator edges.
+            for circuit_idx in range(1, num_circuits + 1):
+                px = (mod_x if num_circuits == 1
+                      else el + (circuit_idx - 1) * ckt_spacing)
+                pipes[f'p_{dist_id}_{evap_id}_{circuit_idx}'] = {
+                    'start_component_id': dist_id,
+                    'start_port': f'outlet_{circuit_idx}',
+                    'end_component_id': evap_id,
+                    'end_port': f'inlet_circuit_{circuit_idx}',
+                    'fluid_state': 'two-phase',
+                    'pressure_side': 'low',
+                    'circuit_label': cl,
+                    'route': [[px, DIST_Y + DIST_H], [px, Y_EVAP]],
+                }
+                pipes[f'p_{evap_id}_{head_id}_{circuit_idx}'] = {
+                    'start_component_id': evap_id,
+                    'start_port': f'outlet_circuit_{circuit_idx}',
+                    'end_component_id': head_id,
+                    'end_port': f'inlet_{circuit_idx}',
+                    'fluid_state': 'gas',
+                    'pressure_side': 'low',
+                    'circuit_label': cl,
+                    'route': [[px, Y_EVAP + EVAP_H], [px, HEAD_Y]],
+                }
+            # header -> suction collector
             if num_modules == 1:
                 pipes['p_loopback'] = {
                     'start_component_id': head_id, 'start_port': 'outlet',
@@ -1065,19 +1090,19 @@ def build_bare_minimum_diagram(request: dict) -> dict:
                 lb = cas_lbs[i] if i < len(cas_lbs) else f'U{i + 1}'
                 tag = label_to_tag.get(str(lb).upper(), str(lb).lower() if lb else f'u{i + 1}')
                 add_sensor_dot(
-                    f'calc.SH.{tag}', cx + cas_evap_w / 2 + 26, Y_EVAP + EVAP_H + 18,
+                    f'calc.SH.{tag}', cx + cas_evap_w / 2, Y_EVAP + EVAP_H / 2,
                     f'{tag.upper()} Coil Superheat', 'calculation',
                     calc_key=f'S.H_{tag} coil', display_side='right')
                 add_sensor_dot(
-                    f'calc.SH_total.{tag}', cx - COMP_W / 2 - 26, Y_COMP + 12,
+                    f'calc.SH_total.{tag}', cx - COMP_W / 2, Y_COMP + COMP_H / 2,
                     f'{tag.upper()} Compressor Superheat', 'calculation',
                     calc_key=f'S.H_total-{tag}', display_side='left')
                 add_sensor_dot(
-                    f'calc.SC_txv.{tag}', cx + TXV_W / 2 + 26, Y_TXV + 12,
+                    f'calc.SC_txv.{tag}', cx - TXV_W / 2, Y_TXV + TXV_H / 2,
                     f'{tag.upper()} TXV Subcooling', 'calculation',
-                    calc_key=f'S.C-txv.{tag}', display_side='right')
+                    calc_key=f'S.C-txv.{tag}', display_side='left')
                 add_sensor_dot(
-                    f'calc.SC_cond.{tag}', cx + COND_W / 2 + 26, Y_COND + COND_H - 12,
+                    f'calc.SC_cond.{tag}', cx + COND_W / 2, Y_COND + COND_H - 16,
                     f'{tag.upper()} Condenser Subcooling', 'calculation',
                     calc_key=f'S.C-{tag}', display_side='right')
             return
@@ -1086,33 +1111,27 @@ def build_bare_minimum_diagram(request: dict) -> dict:
         for mx, lb in zip(mod_xs, mod_lbs):
             tag = tag_map.get(lb, lb.lower() if lb else 'lh')
             add_sensor_dot(
-                f'calc.SH.{tag}', mx, MERGE_Y - 8,
+                f'calc.SH.{tag}', mx + mod_evap_w / 2, Y_EVAP + EVAP_H / 2,
                 f'{lb} Coil Superheat', 'calculation',
-                calc_key=f'S.H_{tag} coil', display_side='below')
+                calc_key=f'S.H_{tag} coil', display_side='right')
             add_sensor_dot(
-                f'calc.SC_txv.{tag}', mx, Y_TXV - 8,
+                f'calc.SC_txv.{tag}', mx - TXV_W / 2, Y_TXV + TXV_H / 2,
                 f'{lb} TXV Subcooling', 'calculation',
-                calc_key=f'S.C-txv.{tag}', display_side='above')
+                calc_key=f'S.C-txv.{tag}', display_side='left')
         add_sensor_dot(
-            'calc.SH_total', CENTER_X - 26, Y_COMP - 10,
+            'calc.SH_total', CENTER_X - COMP_W / 2, Y_COMP + COMP_H / 2,
             'Compressor Total Superheat', 'calculation',
-            calc_key='S.H_total', display_side='above')
+            calc_key='S.H_total', display_side='left')
         add_sensor_dot(
-            'calc.SC_cond', CENTER_X, Y_COND + COND_H + 8,
+            'calc.SC_cond', CENTER_X + COND_W / 2, Y_COND + COND_H - 16,
             'Condenser Outlet Subcooling', 'calculation',
-            calc_key='S.C', display_side='below')
+            calc_key='S.C', display_side='right')
         add_sensor_dot(
-            'P_suc', CENTER_X + 26, Y_COMP - 10,
-            'Suction Pressure', 'pressure', display_side='above')
-        add_sensor_dot(
-            'P_disc', CENTER_X + 26, Y_COMP + COMP_H + 14,
-            'Discharge Pressure', 'pressure', display_side='right')
-        add_sensor_dot(
-            'm_dot_meas', CENTER_X + 36, Y_COND + COND_H + 22,
+            'm_dot_meas', CENTER_X + COND_W / 2, Y_COND + COND_H / 2,
             'Flowmeter (Mass Flow)', 'flow', display_side='right')
         add_sensor_dot(
-            'T_flowmeter.in', CENTER_X + 72, Y_COND + COND_H + 22,
-            'Temp into Flowmeter', 'temperature', display_side='right')
+            'T_flowmeter.in', CENTER_X - COND_W / 2, Y_COND + COND_H / 2,
+            'Temp into Flowmeter', 'temperature', display_side='left')
 
     add_calc_callouts()
 

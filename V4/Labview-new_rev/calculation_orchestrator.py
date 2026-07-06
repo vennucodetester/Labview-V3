@@ -394,6 +394,7 @@ def run_batch_processing(
                 'S_comp.in':     f'S_comp.in-{ab}',
                 'T_sat.cond':    f'T_sat.cond-{ab}',
                 'S.C':           f'S.C-{ab}',
+                'D.S.H':         f'D.S.H-{ab}',
                 'T_waterin':     f'T_waterin-{ab}',
                 'T_waterout':    f'T_waterout-{ab}',
                 'rpm':           f'rpm-{ab}',
@@ -467,10 +468,20 @@ def run_batch_processing(
     # Multi-circuit averaging for evaporator inlets/outlets
     # (override the single-circuit entry from required_roles with averaged lists)
     components = diagram_model.get('components', {})
+    role_mappings = diagram_model.get('sensor_roles', {}) or {}
+
+    def _mapped_role_column(*role_keys):
+        for role_key in role_keys:
+            col = resolve_df_column(role_mappings.get(role_key))
+            if col:
+                return col
+        return None
+
     for label in effective_labels:
         from circuit_semantics import txv_outlet_key, coil_outlet_key
         t1b_key = txv_outlet_key(label)   # T_1b-lh / T_1b-ctr / T_1b-rh
         t2a_key = coil_outlet_key(label)  # T_2a-LH / T_2a-CTR / T_2a-RH
+        ab = module_abbrev(label)
 
         for comp_id, comp in components.items():
             if comp.get('type') == 'Evaporator' and \
@@ -501,6 +512,32 @@ def run_batch_processing(
                 if outlet_cols:
                     sensor_map[f'_avg_{t2a_key}'] = outlet_cols
                 break
+
+        # Aggregate coil-outlet dots created from aliases such as "L Coil Outlet"
+        # are custom sensor roles, not Evaporator outlet_circuit_* ports. Bind
+        # them to the canonical T_2a-* key so computed coil SH works on saved
+        # diagrams that use one outlet probe per coil.
+        if t2a_key not in sensor_map and f'_avg_{t2a_key}' not in sensor_map:
+            aggregate_col = _mapped_role_column(
+                f'T_coil.{ab}.out',
+                f'T_coil.{ab}.outlet',
+            )
+            if aggregate_col:
+                sensor_map[t2a_key] = aggregate_col
+            else:
+                outlet_cols = []
+                for idx in range(1, 13):
+                    col = _mapped_role_column(f'T_coil.{ab}.out.{idx}')
+                    if col:
+                        outlet_cols.append(col)
+                if len(outlet_cols) == 1:
+                    sensor_map[t2a_key] = outlet_cols[0]
+                elif outlet_cols:
+                    sensor_map[f'_avg_{t2a_key}'] = outlet_cols
+
+        lab_sh_col = _mapped_role_column(f'calc.SH.{ab}', f'S.H_{ab} lab')
+        if lab_sh_col:
+            sensor_map[f'_lab_SH_{ab}'] = lab_sh_col
 
     # Non-modular single-coil fallback:
     # If no coil mappings were found for any module, but there is exactly one

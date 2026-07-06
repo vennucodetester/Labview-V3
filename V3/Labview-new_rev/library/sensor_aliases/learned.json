@@ -427,5 +427,11 @@
   ],
   "m_dot_meas": [
     "Flowmeter"
+  ],
+  "T_coil.lh.out.1": [
+    "Center Coil Outlet 1"
+  ],
+  "T_coil.ctr.out.1": [
+    "Center Coil Outlet 2"
   ]
 }

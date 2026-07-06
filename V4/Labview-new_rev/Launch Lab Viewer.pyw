@@ -26,6 +26,15 @@ def main() -> None:
     os.chdir(ROOT)
     sys.path.insert(0, str(ROOT))
     sys.argv = [str(APP)]
+    try:
+        logs = ROOT / "logs"
+        logs.mkdir(exist_ok=True)
+        (logs / "last_launch_path.txt").write_text(
+            f"ROOT={ROOT}\nAPP={APP}\nCWD={Path.cwd()}\n",
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
     try:
         from launch_sync import ensure_launch_cmds

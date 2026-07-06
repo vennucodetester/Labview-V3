@@ -11,6 +11,7 @@
     "cassette_count": 3,
     "cassette_airflow": "reverse",
     "circuits": 6,
+    "expansion_device": "txv",
     "defrost_type": "hot_gas",
     "condenser_cooling": "Air",
     "shelf_rows": 6
@@ -72,7 +73,7 @@
   ],
   "created_by": "silam",
   "created_at": "2026-06-13T10:54:47",
-  "updated_at": "2026-07-02T21:51:05",
-  "last_used": "2026-07-02T21:51:05",
+  "updated_at": "2026-07-05T22:48:43",
+  "last_used": "2026-07-05T22:48:43",
   "migration_source": "tr_2f7ddc99"
 }

@@ -730,7 +730,7 @@ class DataManager(QObject):
             nonlocal added
             if key in custom:
                 if (key.startswith('calc.') or key in {
-                    'P_suc', 'P_disc', 'm_dot_meas', 'T_flowmeter.in', 'T_liq.main'
+                    'm_dot_meas', 'T_flowmeter.in', 'T_liq.main'
                 }):
                     custom[key].update({
                         'type': sensor_type,
@@ -764,59 +764,57 @@ class DataManager(QObject):
             x, y, w, h = _component_bounds(comp)
             evaporators.append((tag, str(label), x, y, w, h))
             add_dot(
-                f'calc.SH.{tag}', x + w / 2, y + h + 24,
+                f'calc.SH.{tag}', x + w, y + h / 2,
                 f'{label} Coil Superheat', 'calculation',
-                calc_key=f'S.H_{tag} coil', display_side='below')
+                calc_key=f'S.H_{tag} coil', display_side='right')
 
         for comp in by_type.get('TXV', []):
             label = (comp.get('properties') or {}).get('circuit_label')
             tag = circuit_tag(label)
             if not tag:
                 continue
-            x, y, w, _h = _component_bounds(comp)
+            x, y, w, h = _component_bounds(comp)
             add_dot(
-                f'calc.SC_txv.{tag}', x + w / 2, y - 10,
+                f'calc.SC_txv.{tag}', x, y + h / 2,
                 f'{label} TXV Subcooling', 'calculation',
-                calc_key=f'S.C-txv.{tag}', display_side='above')
+                calc_key=f'S.C-txv.{tag}', display_side='left')
 
-        compressors = by_type.get('Compressor', [])
+        compressors = [(cid, comp) for cid, comp in comps.items()
+                       if comp.get('type') == 'Compressor']
         if compressors:
-            x, y, w, h = _component_bounds(compressors[0])
+            comp_id, comp = compressors[0]
+            x, y, w, h = _component_bounds(comp)
             add_dot(
-                'calc.SH_total', x + w / 2 - 26, y - 10,
+                'calc.SH_total', x, y + h / 2,
                 'Compressor Total Superheat', 'calculation',
-                calc_key='S.H_total', display_side='above')
-            add_dot(
-                'P_suc', x + w / 2 + 26, y - 10,
-                'Suction Pressure', 'pressure',
-                display_side='above')
-            add_dot(
-                'P_disc', x + w / 2 + 26, y + h + 14,
-                'Discharge Pressure', 'pressure',
-                display_side='right')
+                calc_key='S.H_total', display_side='left')
             roles = model.setdefault('sensor_roles', {})
-            for old_key, new_key in list((('.SP', 'P_suc'), ('.DP', 'P_disc'))):
-                for role_key, sensor_name in list(roles.items()):
-                    if role_key.endswith(old_key) and new_key not in roles:
-                        roles[new_key] = sensor_name
-                        roles.pop(role_key, None)
+            pressure_roles = {
+                'P_suc': f'Compressor.{comp_id}.SP',
+                'P_disc': f'Compressor.{comp_id}.DP',
+            }
+            for old_key, new_key in pressure_roles.items():
+                if old_key in roles and new_key not in roles:
+                    roles[new_key] = roles[old_key]
+                roles.pop(old_key, None)
+                custom.pop(old_key, None)
 
         condensers = by_type.get('Condenser', [])
         if condensers:
             x, y, w, h = _component_bounds(condensers[0])
             add_dot(
-                'calc.SC_cond', x + w / 2, y + h + 8,
+                'calc.SC_cond', x + w, y + h - 16,
                 'Condenser Outlet Subcooling', 'calculation',
-                calc_key='S.C', display_side='below')
+                calc_key='S.C', display_side='right')
 
             add_dot(
-                'm_dot_meas', x + w / 2 + 36, y + h + 22,
+                'm_dot_meas', x + w, y + h / 2,
                 'Flowmeter (Mass Flow)', 'flow',
                 display_side='right')
             add_dot(
-                'T_flowmeter.in', x + w / 2 + 72, y + h + 22,
+                'T_flowmeter.in', x, y + h / 2,
                 'Temp into Flowmeter', 'temperature',
-                display_side='right')
+                display_side='left')
 
         distributors = by_type.get('Distributor', [])
         if distributors:

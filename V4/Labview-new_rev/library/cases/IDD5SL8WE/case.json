@@ -11,6 +11,7 @@
     "cassette_count": null,
     "cassette_airflow": null,
     "circuits": 6,
+    "expansion_device": "txv",
     "defrost_type": "none",
     "condenser_cooling": "Water",
     "shelf_rows": 5
@@ -70,6 +71,6 @@
   ],
   "created_by": "silam",
   "created_at": "2026-07-02T23:10:23",
-  "updated_at": "2026-07-02T23:10:57",
-  "last_used": "2026-07-02T23:10:57"
+  "updated_at": "2026-07-05T23:40:15",
+  "last_used": "2026-07-05T23:40:15"
 }

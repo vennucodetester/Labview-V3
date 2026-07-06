@@ -10,13 +10,14 @@ Complete interactive diagram editor with:
 """
 import uuid
 import logging
+import math
 from collections import deque
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QLabel, QFileDialog, QFrame, QGraphicsView,
                              QGraphicsScene, QMessageBox, QComboBox, QToolBar,
                              QDockWidget, QFormLayout, QLineEdit, QSpinBox, QDoubleSpinBox, QMenu,
                              QGraphicsItem, QGraphicsItemGroup, QGraphicsRectItem, QDialog,
-                             QDialogButtonBox, QCheckBox, QApplication)
+                             QDialogButtonBox, QCheckBox, QApplication, QSplitter)
 from PyQt6.QtGui import QPainter, QColor, QPen, QAction, QBrush, QMouseEvent, QPainterPath
 from PyQt6.QtCore import Qt, pyqtSignal, QPointF, QTimer, QEvent, QRectF
 from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsEllipseItem, QGraphicsTextItem
@@ -24,6 +25,7 @@ from PyQt6.QtWidgets import QGraphicsPathItem, QGraphicsEllipseItem, QGraphicsTe
 from component_schemas import SCHEMAS
 from diagram_components import BaseComponentItem, PipeItem, JunctionComponentItem, TXVComponentItem, DistributorComponentItem, SensorBulbComponentItem, SensorComponentItem, FanComponentItem, AirSensorArrayComponentItem, ShelvingGridComponentItem, InstrumentPanelItem, DraggableTextItem, HotGasBypassItem, HotGasLoopItem, RemoteLineEndpointItem, SplitterComponentItem, CombinerComponentItem
 import diagram_components as dc_module
+from diagnosis_visibility import finding_sort_key, is_diagram_visible_finding
 # libavoid_router removed â€” all pipes use explicit routes (see _raw_route in PipeItem)
 
 logger = logging.getLogger(__name__)
@@ -406,6 +408,7 @@ class DiagramWidget(QWidget):
     
     # Signal emitted when a sensor port is clicked (sensor_name)
     sensor_port_clicked = pyqtSignal(str)
+    mapping_report_requested = pyqtSignal()
     
     def __init__(self, data_manager):
         super().__init__()
@@ -415,6 +418,8 @@ class DiagramWidget(QWidget):
         self.sensor_boxes = {}  # Track sensor boxes
         self.overlay_items = []  # Mapping mode overlay items
         self.dot_items = {}  # role_key -> visible sensor dot item
+        self._diagnostic_findings = []
+        self._diagnostic_overlay_items = []
         self._processed_means = None  # column means from last Calculations run (state overlay)
         self._processed_df = None
         
@@ -524,14 +529,68 @@ class DiagramWidget(QWidget):
         # Track panning mode
         self.is_panning = False
         
-        main_layout.addWidget(self.view)
+        self.analysis_splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.analysis_splitter.addWidget(self.view)
+        self.cycle_panel = self._create_cycle_panel()
+        self.cycle_panel.setVisible(False)
+        self.analysis_splitter.addWidget(self.cycle_panel)
+        self.analysis_splitter.setStretchFactor(0, 3)
+        self.analysis_splitter.setStretchFactor(1, 1)
+        self.analysis_splitter.setSizes([1100, 420])
+
+        main_layout.addWidget(self.analysis_splitter)
         
         self.setAcceptDrops(True)
+
+    def _create_cycle_panel(self):
+        panel = QFrame(self)
+        panel.setFrameShape(QFrame.Shape.StyledPanel)
+        panel.setMinimumWidth(360)
+        panel.setStyleSheet("QFrame{background:#ffffff;border-left:1px solid #d0d7de;}")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(6, 6, 6, 6)
+        layout.setSpacing(6)
+
+        header = QHBoxLayout()
+        title = QLabel("Cycle (P-h)")
+        title.setStyleSheet("font-weight:bold;color:#1f2933;")
+        header.addWidget(title)
+        header.addStretch()
+        collapse = QPushButton("Collapse")
+        collapse.setFixedHeight(24)
+        collapse.clicked.connect(lambda: self.analysis_checkbox.setChecked(False))
+        header.addWidget(collapse)
+        layout.addLayout(header)
+
+        try:
+            from ph_diagram_widget import CycleDomeWidget
+            self.ph_diagram_widget = CycleDomeWidget(self.data_manager)
+            layout.addWidget(self.ph_diagram_widget, 1)
+        except Exception as exc:
+            self.ph_diagram_widget = None
+            msg = QLabel(f"P-h view failed to initialize: {exc}")
+            msg.setWordWrap(True)
+            msg.setStyleSheet("color:#8a1f11;background:#fff4e5;padding:8px;")
+            layout.addWidget(msg, 1)
+            logger.exception("[DIAGRAM] Failed to initialize P-h cycle panel")
+        return panel
         
     def populate_toolbar(self):
         """Populate toolbar with mapping-first controls."""
         self._drawing_only_widgets = []
         self._drawing_only_actions = []
+
+        self.edit_layout_checkbox = QCheckBox("Edit layout")
+        self.edit_layout_checkbox.setToolTip("Enable component movement and diagram authoring tools")
+        self.edit_layout_checkbox.toggled.connect(self._on_edit_layout_toggled)
+        self.toolbar.addWidget(self.edit_layout_checkbox)
+
+        self.analysis_checkbox = QCheckBox("Analysis")
+        self.analysis_checkbox.setToolTip("Show calculated state overlays when calculation results exist")
+        self.analysis_checkbox.toggled.connect(self._on_analysis_toggled)
+        self.toolbar.addWidget(self.analysis_checkbox)
+
+        self.toolbar.addSeparator()
 
         # Components dropdown menu
         components_btn = QPushButton("ðŸ“¦ Components")
@@ -611,13 +670,6 @@ class DiagramWidget(QWidget):
         
         sep_edit = self.toolbar.addSeparator()
         self._drawing_only_actions.append(sep_edit)
-        
-        # Mode toggle
-        self.mode_combo = QComboBox()
-        self.mode_combo.addItems(["Drawing", "Mapping", "Analysis"])
-        self.mode_combo.currentTextChanged.connect(self.on_mode_changed)
-        self.toolbar.addWidget(QLabel("Mode:"))
-        self.toolbar.addWidget(self.mode_combo)
 
         self.toolbar.addSeparator()
 
@@ -625,6 +677,13 @@ class DiagramWidget(QWidget):
         zoom_fit_btn.setToolTip("Fit page width; Ctrl-click fits everything")
         zoom_fit_btn.clicked.connect(self.zoom_to_fit)
         self.toolbar.addWidget(zoom_fit_btn)
+
+        self.toolbar.addSeparator()
+
+        mapping_report_btn = QPushButton("Mapping report...")
+        mapping_report_btn.setToolTip("Open the CSV-to-diagram mapping report")
+        mapping_report_btn.clicked.connect(self.mapping_report_requested.emit)
+        self.toolbar.addWidget(mapping_report_btn)
 
         self.toolbar.addSeparator()
 
@@ -653,17 +712,52 @@ class DiagramWidget(QWidget):
         self._drawing_only_widgets.append(align_btn)
         self._drawing_only_actions.append(align_action)
 
-        self.mode_combo.blockSignals(True)
-        self.mode_combo.setCurrentText("Mapping")
-        self.mode_combo.blockSignals(False)
-        self._sync_toolbar_mode("Mapping")
+        self._sync_edit_layout_controls()
 
-    def _sync_toolbar_mode(self, mode_text):
-        drawing_mode = mode_text == "Drawing"
+    def _edit_layout_enabled(self):
+        return bool(getattr(self, "edit_layout_checkbox", None)
+                    and self.edit_layout_checkbox.isChecked())
+
+    def _analysis_enabled(self):
+        return bool(getattr(self, "analysis_checkbox", None)
+                    and self.analysis_checkbox.isChecked())
+
+    def _sync_edit_layout_controls(self):
+        edit_enabled = self._edit_layout_enabled()
         for action in getattr(self, "_drawing_only_actions", []):
-            action.setVisible(drawing_mode)
+            action.setVisible(edit_enabled)
         for item in getattr(self, "_drawing_only_widgets", []):
-            item.setVisible(drawing_mode)
+            item.setVisible(edit_enabled)
+
+    def _on_edit_layout_toggled(self, checked):
+        self._sync_edit_layout_controls()
+        if not checked:
+            self.current_tool = None
+            self.custom_sensor_mode = None
+            self.sensor_box_mode = False
+            if self.pipe_start_port is not None:
+                try:
+                    self.pipe_start_port.setScale(1.0)
+                except RuntimeError:
+                    pass
+                self.pipe_start_port = None
+        self.apply_interaction_mode()
+
+    def _on_analysis_toggled(self, checked):
+        self._sync_cycle_panel()
+        self.build_scene_from_model()
+
+    def _sync_cycle_panel(self):
+        panel = getattr(self, 'cycle_panel', None)
+        if panel is None:
+            return
+        enabled = self._analysis_enabled()
+        panel.setVisible(enabled)
+        if enabled and self._processed_df is not None and getattr(self, 'ph_diagram_widget', None):
+            try:
+                self.ph_diagram_widget.load_filtered_data(self._processed_df)
+            except Exception:
+                logger.exception("[DIAGRAM] Failed to load data into P-h cycle panel")
 
     def _show_sensor_point_menu(self, event, role_key, currently_enabled=True):
         """Right-click context menu on a sensor dot â€” enable/disable this spot or groups."""
@@ -833,6 +927,8 @@ class DiagramWidget(QWidget):
 
     def set_tool(self, tool_name):
         """Set the active placement tool."""
+        if not self._edit_layout_enabled():
+            self.edit_layout_checkbox.setChecked(True)
         self.current_tool = tool_name
         self.pipe_mode = False
         self.custom_sensor_mode = None
@@ -841,6 +937,8 @@ class DiagramWidget(QWidget):
     
     def set_custom_sensor_tool(self, sensor_type):
         """Set custom sensor placement mode."""
+        if not self._edit_layout_enabled():
+            self.edit_layout_checkbox.setChecked(True)
         self.custom_sensor_mode = sensor_type
         self.current_tool = None
         self.pipe_mode = False
@@ -848,6 +946,8 @@ class DiagramWidget(QWidget):
     
     def set_sensor_box_tool(self):
         """Set sensor box placement mode."""
+        if not self._edit_layout_enabled():
+            self.edit_layout_checkbox.setChecked(True)
         self.sensor_box_mode = True
         self.current_tool = None
         self.pipe_mode = False
@@ -1001,6 +1101,58 @@ class DiagramWidget(QWidget):
             target.setScale(2.6)
             QTimer.singleShot(1800, self.update_sensor_dots)
 
+    def _format_sensor_value_label(self, value):
+        if hasattr(self.data_manager, "format_sensor_value"):
+            return self.data_manager.format_sensor_value(value)
+        if value is None:
+            return ""
+        if isinstance(value, (int, float)):
+            return f"{value:.1f}"
+        return str(value)
+
+    def _format_calculated_role_label(self, role_key, calc_key, value):
+        value_text = self._format_sensor_value_label(value)
+        if not value_text:
+            return ""
+        key = role_key or calc_key or ""
+        if key.startswith('calc.SH'):
+            return f"SH {value_text}F"
+        if key.startswith('calc.DSH') or (calc_key or "") == 'D.S.H':
+            return f"DSH {value_text}F"
+        if key.startswith('calc.SC') or (calc_key or "").startswith('S.C'):
+            return f"SC {value_text}F"
+        return value_text
+
+    def _processed_value_for_calc_key(self, calc_key):
+        if not calc_key or self._processed_means is None:
+            return None
+        candidates = [calc_key]
+        try:
+            import re
+            m = re.match(r'^(S\.H_)([a-z]+)( coil)$', calc_key)
+            if m:
+                ab = m.group(2)
+                candidates.extend([
+                    f'{m.group(1)}{ab.upper()}{m.group(3)}',
+                    f'{calc_key}-{ab}',
+                    f'{m.group(1)}{ab.upper()}{m.group(3)}-{ab}',
+                ])
+            m = re.match(r'^(S\.C-txv\.)([a-z]+)$', calc_key)
+            if m:
+                ab = m.group(2)
+                candidates.extend([f'{calc_key}-{ab}', f'{m.group(1)}{ab.upper()}'])
+        except Exception:
+            pass
+        for col in candidates:
+            if col in self._processed_means.index:
+                value = self._processed_means.get(col)
+                try:
+                    if value is not None and not math.isnan(float(value)):
+                        return float(value)
+                except (TypeError, ValueError):
+                    continue
+        return None
+
     def _instrument_panel_geometry(self, model):
         """Return x, y, width for the full-width instrument section."""
         comps = model.get('components', {}) or {}
@@ -1031,6 +1183,13 @@ class DiagramWidget(QWidget):
         self.sensor_boxes.clear()
         self.overlay_items.clear()
         self.dot_items.clear()
+        self._diagnostic_overlay_items.clear()
+        # Reserved footprints (scene coords) of value/calc chips, so each new
+        # chip can be nudged to a clear spot instead of stacking on its
+        # neighbours. Reset every rebuild; consulted by _attach_value_chip.
+        self._value_chip_rects = []
+        self._state_chip_rects = []
+        self._chip_obstacles_seeded = False
 
         model = self.data_manager.diagram_model
         
@@ -1045,13 +1204,12 @@ class DiagramWidget(QWidget):
         sensor_boxes = model.get('sensor_boxes', {}) or {}
         if sensor_boxes:
             try:
-                mode_text = self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
                 panel_item = InstrumentPanelItem(
                     "__instrument_panel",
                     sensor_boxes,
                     self.data_manager,
                     self._instrument_panel_geometry(model),
-                    show_unmapped=self._revealing_hidden_mapping_candidates(mode_text),
+                    show_unmapped=self._revealing_hidden_mapping_candidates(),
                 )
                 if panel_item.sensors:
                     self.scene.addItem(panel_item)
@@ -1150,6 +1308,10 @@ class DiagramWidget(QWidget):
                     self.component_items[comp_id].group_id = group_id
                     self.component_items[comp_id].setOpacity(0.9)
 
+        # Secondary-fluid condenser arrows are scene overlays so they remain
+        # visible above process pipes and below sensor markers.
+        self.add_condenser_secondary_flow_arrows()
+
         # Always overlay sensor role dots (since they are now clean visuals)
         try:
             self.add_sensor_role_dots()
@@ -1157,9 +1319,11 @@ class DiagramWidget(QWidget):
             render_errors.append("sensor role dots")
             logger.exception("[DIAGRAM] Failed to render sensor role dots")
 
-        # In Analysis mode, overlay computed thermodynamic states on pipes
-        if getattr(self, 'mode_combo', None) and self.mode_combo.currentText() == 'Analysis':
+        # Analysis overlay is independent of mapping/editing.
+        if self._analysis_enabled():
             self.apply_state_overlay()
+
+        self._render_diagnostic_overlay()
 
         # Apply interaction mode (disable editing in Mapping/Analysis)
         self.apply_interaction_mode()
@@ -1204,56 +1368,168 @@ class DiagramWidget(QWidget):
             else:
                 self._processed_df = processed_df.copy()
                 self._processed_means = processed_df.mean(numeric_only=True)
+            if self._analysis_enabled() and self._processed_df is not None and getattr(self, 'ph_diagram_widget', None):
+                try:
+                    self.ph_diagram_widget.load_filtered_data(self._processed_df)
+                except Exception:
+                    logger.exception("[DIAGRAM] Failed to refresh P-h cycle panel")
             print(f"[STATE OVERLAY] Cached means for "
                   f"{0 if self._processed_means is None else len(self._processed_means)} columns")
-            if getattr(self, 'mode_combo', None) and self.mode_combo.currentText() == 'Analysis':
+            if self._analysis_enabled():
                 self.build_scene_from_model()
         except Exception as e:
             print(f"[STATE OVERLAY] Failed to cache processed data: {e}")
 
-    # Finding.component â†’ diagram component types (for findingâ†’diagram highlight)
+    # Finding.component -> diagram component types (for finding->diagram highlight)
     _FINDING_TYPE_MAP = {
         'Compressor':        ['Compressor'],
         'Condenser':         ['Condenser'],
         'Evaporator':        ['Evaporator'],
         'TXV':               ['TXV'],
+        'Expansion Device':   ['TXV', 'CapTube', 'EEV'],
+        'Cap Tube':          ['CapTube'],
+        'Capillary Tube':    ['CapTube'],
+        'EEV':               ['EEV'],
         'Distributor':       ['Distributor'],
         'Evap Distributor':  ['Distributor', 'Evaporator'],
-        'Filter Dryer':      ['FilterDryer', 'Distributor'],
+        'Filter Dryer':      ['FilterDrier', 'FilterDryer', 'Distributor'],
+        'Refrigerant':       ['Compressor', 'Condenser', 'TXV', 'CapTube', 'EEV', 'Evaporator'],
         'Sensors':           ['Sensor', 'SensorBulb'],
+        'Sensors / Calculations': ['Sensor', 'SensorBulb', 'Condenser', 'Compressor'],
         'Hot Gas Defrost':   ['HotGasBypassValve', 'HotGasLoop'],
     }
 
-    def highlight_finding(self, finding):
-        """Flash a highlight halo around the component(s) a diagnostic
-        finding points at, and center the view on the first one.
-        Called from MainWindow when a card's 'Show on diagram' is clicked."""
-        from PyQt6.QtCore import QTimer
+    _SCENARIO_LOCATOR_MAP = {
+        # Refrigerant charge findings are broad thermodynamic stories; put the
+        # single badge at the liquid-line/condenser-outlet checkpoint.
+        'RF-1': {'types': ['Condenser'], 'port': 'outlet'},
+        'RF-2': {'types': ['Condenser'], 'port': 'outlet'},
+        'RF-3': {'types': ['Condenser'], 'port': 'outlet'},
+        'RF-4': {'types': ['Condenser'], 'port': 'outlet'},
+
+        'CP-1': {'types': ['Compressor'], 'port': 'inlet'},
+        'CP-2': {'types': ['Compressor'], 'port': 'outlet'},
+        'CP-3': {'types': ['Compressor']},
+        'CP-4': {'types': ['Compressor']},
+        'CP-5': {'types': ['Compressor'], 'port': 'outlet'},
+        'CP-6': {'types': ['Compressor']},
+        'CP-7': {'types': ['Compressor']},
+
+        'CD-1': {'types': ['Condenser']},
+        'CD-2': {'types': ['Condenser']},
+        'CD-3': {'types': ['Condenser']},
+
+        'EV-1': {'types': ['Evaporator']},
+        'EV-2': {'types': ['Evaporator']},
+        'EV-3': {'types': ['Evaporator']},
+
+        'TX-1': {'types': ['TXV', 'CapTube', 'EEV'], 'port': 'outlet'},
+        'TX-2': {'types': ['TXV', 'CapTube', 'EEV'], 'port': 'outlet'},
+        'TX-3': {'types': ['TXV', 'CapTube', 'EEV'], 'port': 'outlet'},
+
+        'DI-1': {'types': ['Distributor', 'Evaporator'], 'ports': ['inlet', 'dist_inlet']},
+        'DI-2': {'types': ['FilterDrier', 'FilterDryer', 'Distributor', 'TXV', 'CapTube', 'EEV', 'Condenser'], 'ports': ['inlet', 'outlet']},
+        'DI-3': {'types': ['Distributor', 'Evaporator'], 'ports': ['inlet', 'dist_inlet']},
+
+        'SL-1': {'pipe': {'pressure_side': 'low', 'fluid_state': 'gas'}},
+
+        'HG-1': {'types': ['HotGasBypassValve', 'HotGasLoop']},
+        'HG-2': {'types': ['HotGasBypassValve', 'HotGasLoop']},
+
+        'SI-1': {'types': ['Condenser'], 'port': 'outlet'},
+        'SI-2': {'types': ['TXV', 'CapTube', 'EEV', 'Evaporator']},
+        'SI-3': {'types': ['Compressor']},
+        'SI-4': {'types': ['Condenser', 'TXV', 'CapTube', 'EEV', 'Evaporator']},
+        'SI-5': {'types': ['Compressor', 'Condenser']},
+        'SQ-1': {'types': ['Sensor', 'SensorBulb']},
+
+        'SCORECARD-PRODUCT-TEMP': {'types': ['Evaporator']},
+        'SCORECARD-COIL-SUPERHEAT': {'types': ['Evaporator']},
+        'SCORECARD-SUBCOOLING': {'types': ['Condenser'], 'port': 'outlet'},
+        'SCORECARD-CAPACITY': {'types': ['Compressor']},
+        'SCORECARD-DOE': {'types': ['Condenser']},
+    }
+
+    def set_diagnostic_findings(self, findings):
+        """Receive diagnostics results and render persistent verdict markers."""
+        self._diagnostic_findings = [
+            f for f in (findings or [])
+            if is_diagram_visible_finding(f)
+        ]
+        try:
+            self._render_diagnostic_overlay()
+        except Exception:
+            logger.exception("[DIAGRAM] Failed to render diagnostic verdict overlay")
+
+    def _finding_module_abbrev(self, finding):
+        """Return lh/ctr/rh when the finding names a specific module."""
+        from circuit_semantics import module_abbrev
+
+        chunks = [
+            getattr(finding, 'label', '') or '',
+            getattr(finding, 'component', '') or '',
+            getattr(finding, 'summary', '') or '',
+        ]
+        for text in chunks:
+            if 'Unit ' in text:
+                try:
+                    return text.split('Unit ')[-1].strip().split()[0].lower()
+                except Exception:
+                    pass
+        normalized = ' '.join(chunks).replace('—', ' ').replace('-', ' ')
+        for token in ('Left', 'Center', 'Right'):
+            if token.lower() in normalized.lower().split():
+                return module_abbrev(token)
+        for token in ('LH', 'CTR', 'RH'):
+            if token.lower() in normalized.lower().split():
+                return token.lower()
+        return None
+
+    def _locator_spec_for_finding(self, finding):
+        scenario_id = str(getattr(finding, 'scenario_id', '') or '')
+        label = getattr(finding, 'label', '') or ''
+        if scenario_id in self._SCENARIO_LOCATOR_MAP:
+            return self._SCENARIO_LOCATOR_MAP[scenario_id]
+        if 'Negative Subcooling' in label:
+            return self._SCENARIO_LOCATOR_MAP['SI-1']
+        return None
+
+    def _component_items_for_types(self, types):
+        matches = []
+        for component_type in types:
+            matches.extend(
+                c for c in self.component_items.values()
+                if c.component_data.get('type') == component_type
+            )
+        return matches
+
+    def _finding_target_items(self, finding):
         from circuit_semantics import module_abbrev
 
         comp_name = (getattr(finding, 'component', '') or '').strip()
-        label     = getattr(finding, 'label', '') or ''
+        unit_ab = self._finding_module_abbrev(finding)
+        spec = self._locator_spec_for_finding(finding)
 
-        # Cassette findings carry 'â€” Unit LH' in the label â†’ filter by unit
-        unit_ab = None
-        if 'Unit ' in label:
-            try:
-                unit_ab = label.split('Unit ')[-1].strip().split()[0].lower()
-            except Exception:
-                unit_ab = None
-
-        # Pick target items
-        items = []
-        if comp_name == 'Suction Line':
+        if spec and spec.get('pipe'):
+            constraints = spec['pipe']
+            items = [
+                p for p in self.pipe_items.values()
+                if all(p.pipe_data.get(k) == v for k, v in constraints.items())
+            ]
+        elif spec and spec.get('types'):
+            types = spec['types']
+            items = self._component_items_for_types(types)
+        elif comp_name == 'Suction Line':
             items = [p for p in self.pipe_items.values()
                      if p.pipe_data.get('pressure_side') == 'low'
                      and p.pipe_data.get('fluid_state') == 'gas']
-        elif comp_name in ('Refrigerant', 'System'):
+        elif comp_name in ('System',):
             items = list(self.component_items.values())
         else:
-            types = self._FINDING_TYPE_MAP.get(comp_name, [])
-            items = [c for c in self.component_items.values()
-                     if c.component_data.get('type') in types]
+            base_comp = comp_name.replace('—', '-').split('-')[0].strip()
+            types = self._FINDING_TYPE_MAP.get(base_comp, [base_comp])
+            items = self._component_items_for_types(types)
+
         if unit_ab:
             def _matches_unit(item):
                 lbl = (item.component_data.get('properties', {}) or {}).get('circuit_label') \
@@ -1262,6 +1538,157 @@ class DiagramWidget(QWidget):
             filtered = [i for i in items if _matches_unit(i)]
             if filtered:
                 items = filtered
+        return items
+
+    def _badge_rect_for_finding(self, finding, target):
+        spec = self._locator_spec_for_finding(finding) or {}
+        port_names = spec.get('ports') or spec.get('port')
+        if isinstance(port_names, str):
+            port_names = [port_names]
+        if port_names and hasattr(target, 'ports'):
+            for port_name in port_names:
+                port = target.ports.get(port_name)
+                if port is not None:
+                    p = port.sceneBoundingRect().center()
+                    return QRectF(p.x() + 8, p.y() - 18, 54, 22)
+        r = target.sceneBoundingRect()
+        return QRectF(r.right() - 12, r.top() - 18, 54, 22)
+
+    def _render_diagnostic_overlay(self):
+        for item in list(self._diagnostic_overlay_items):
+            try:
+                if item.scene():
+                    self.scene.removeItem(item)
+            except (RuntimeError, Exception):
+                pass
+        self._diagnostic_overlay_items = []
+
+        findings = [
+            f for f in self._diagnostic_findings
+            if is_diagram_visible_finding(f)
+        ]
+        if not findings or not self.scene:
+            return
+
+        findings.sort(key=finding_sort_key)
+        top = findings[0]
+        bounds = self.scene.itemsBoundingRect()
+        x = bounds.left() + 16
+        y = bounds.top() + 12
+        banner_text = getattr(top, 'summary', '') or getattr(top, 'label', 'Diagnostic finding')
+        if len(findings) > 1:
+            banner_text += f"  (+{len(findings) - 1} more)"
+        banner = QGraphicsTextItem(banner_text[:160])
+        banner.setDefaultTextColor(QColor('#1f2933'))
+        banner.setTextWidth(700)
+        banner.setPos(x + 12, y + 7)
+        banner.setZValue(75)
+        rect = QRectF(x, y, min(760, max(360, banner.boundingRect().width() + 28)), 42)
+        bg = QGraphicsRectItem(rect)
+        bg.setPen(QPen(QColor('#f0b429'), 2))
+        bg.setBrush(QBrush(QColor(255, 248, 220, 235)))
+        bg.setZValue(74)
+        bg.setToolTip("Click to show ranked visible findings")
+        bg.mousePressEvent = lambda event, fs=list(findings): self._show_ranked_findings_dialog(fs)
+        banner.setToolTip("Click to show ranked visible findings")
+        banner.mousePressEvent = lambda event, fs=list(findings): self._show_ranked_findings_dialog(fs)
+        self.scene.addItem(bg)
+        self.scene.addItem(banner)
+        self._diagnostic_overlay_items.extend([bg, banner])
+
+        severity = getattr(top, 'severity', 'WATCH')
+        label = {'CRITICAL': 'CRIT', 'WARNING': 'WARN', 'WATCH': 'WATCH'}.get(severity, severity)
+        color = {'CRITICAL': '#c0392b', 'WARNING': '#e67e22', 'WATCH': '#2980b9'}.get(severity, '#2980b9')
+        targets = self._finding_target_items(top)
+        if targets:
+            target = targets[0]
+            try:
+                badge_rect = self._badge_rect_for_finding(top, target)
+                badge_bg = QGraphicsRectItem(badge_rect)
+                badge_bg.setPen(QPen(QColor(color), 2))
+                badge_bg.setBrush(QBrush(QColor('#ffffff')))
+                badge_bg.setZValue(78)
+                badge = QGraphicsTextItem(label)
+                badge.setDefaultTextColor(QColor(color))
+                badge.setPos(badge_rect.left() + 6, badge_rect.top() + 2)
+                badge.setZValue(79)
+                tooltip = (
+                    f"{getattr(top, 'label', '')}\n\n"
+                    f"{getattr(top, 'summary', '')}\n\n"
+                    f"Evidence:\n{getattr(top, 'evidence', '')}\n\n"
+                    f"Recommendation:\n{getattr(top, 'recommendation', '')}"
+                )
+                badge_bg.setToolTip(tooltip)
+                badge.setToolTip(tooltip)
+                badge_bg.mousePressEvent = lambda event, f=top: self._show_finding_evidence_dialog(f)
+                badge.mousePressEvent = lambda event, f=top: self._show_finding_evidence_dialog(f)
+                self.scene.addItem(badge_bg)
+                self.scene.addItem(badge)
+                self._diagnostic_overlay_items.extend([badge_bg, badge])
+            except Exception:
+                logger.exception("[DIAGRAM] Failed to render diagnostic badge")
+
+    def _show_finding_evidence_dialog(self, finding):
+        dlg = QDialog(self)
+        dlg.setWindowTitle(getattr(finding, 'label', 'Diagnostic finding'))
+        layout = QVBoxLayout(dlg)
+        text = QLabel(
+            f"<b>{getattr(finding, 'severity', '')}: {getattr(finding, 'summary', '')}</b><br><br>"
+            f"<b>Evidence</b><br><pre>{getattr(finding, 'evidence', '')}</pre>"
+            f"<b>Recommendation</b><br><pre>{getattr(finding, 'recommendation', '')}</pre>"
+        )
+        text.setWordWrap(True)
+        text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(text)
+        show_cycle_btn = QPushButton("Show on cycle")
+        show_cycle_btn.clicked.connect(lambda: self.show_finding_on_cycle(finding))
+        layout.addWidget(show_cycle_btn)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dlg.accept)
+        layout.addWidget(buttons)
+        dlg.resize(560, 360)
+        dlg.exec()
+
+    def show_finding_on_cycle(self, finding):
+        """Open Analysis and highlight the finding's state point on the P-h panel."""
+        if getattr(self, 'analysis_checkbox', None) and not self.analysis_checkbox.isChecked():
+            self.analysis_checkbox.setChecked(True)
+        else:
+            self._sync_cycle_panel()
+        if self._processed_df is not None and getattr(self, 'ph_diagram_widget', None):
+            try:
+                self.ph_diagram_widget.load_filtered_data(self._processed_df)
+                self.ph_diagram_widget.highlight_finding(finding)
+            except Exception:
+                logger.exception("[DIAGRAM] Failed to highlight finding on P-h cycle")
+
+    def _show_ranked_findings_dialog(self, findings):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Visible Diagram Findings")
+        layout = QVBoxLayout(dlg)
+        lines = []
+        for index, finding in enumerate(findings, start=1):
+            lines.append(
+                f"<b>{index}. {getattr(finding, 'severity', '')}: "
+                f"{getattr(finding, 'label', '')}</b><br>"
+                f"{getattr(finding, 'summary', '')}<br>"
+            )
+        text = QLabel("<br>".join(lines) or "No visible findings.")
+        text.setWordWrap(True)
+        text.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        layout.addWidget(text)
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok)
+        buttons.accepted.connect(dlg.accept)
+        layout.addWidget(buttons)
+        dlg.resize(560, 360)
+        dlg.exec()
+
+    def highlight_finding(self, finding):
+        """Flash a highlight halo around the component(s) a diagnostic
+        finding points at, and center the view on the first one.
+        Called from MainWindow when a card's 'Show on diagram' is clicked."""
+        comp_name = (getattr(finding, 'component', '') or '').strip()
+        items = self._finding_target_items(finding)
         if not items:
             print(f"[LOCATE] No diagram items matched finding component '{comp_name}'")
             return
@@ -1292,8 +1719,7 @@ class DiagramWidget(QWidget):
             self.view.centerOn(items[0])
         except Exception:
             pass
-        print(f"[LOCATE] Highlighted {len(items)} item(s) for '{comp_name}'"
-              f"{' (unit ' + unit_ab + ')' if unit_ab else ''}")
+        print(f"[LOCATE] Highlighted {len(items)} item(s) for '{comp_name}'")
 
     # Thresholds for state violations (Â°F)
     _FLASH_GAS_SC_MIN = 0.5     # liquid line must hold at least this subcooling
@@ -1301,23 +1727,12 @@ class DiagramWidget(QWidget):
     _WET_DISCHARGE_SH_MIN = 2.0  # discharge must be clearly superheated
 
     def apply_state_overlay(self):
-        """Color-flag pipes whose COMPUTED thermodynamic state contradicts
-        their declared fluid state, using the means cached from the last
-        Calculations run.
-
-        Checks:
-          liquid/high pipes  â†’ flash gas      (subcooling â‰¤ ~0)
-          gas/low pipes      â†’ floodback      (superheat â‰¤ ~0)
-          gas/high pipes     â†’ wet compression (discharge superheat â‰¤ ~2Â°F)
-        Healthy pipes are left untouched; violations get a dashed magenta
-        pen, a label at the pipe midpoint, and an explanatory tooltip.
-        """
+        """Render measured refrigerant state on pipes in Analysis mode."""
         means = self._processed_means
         if means is None:
             return
         import math as _math
         from PyQt6.QtGui import QFont
-        from PyQt6.QtWidgets import QGraphicsSimpleTextItem
         from circuit_semantics import module_abbrev
         from calculation_orchestrator import _detect_system_type
 
@@ -1325,77 +1740,349 @@ class DiagramWidget(QWidget):
 
         def get(col):
             v = means.get(col)
-            if v is None or (isinstance(v, float) and _math.isnan(v)):
+            try:
+                if v is None or _math.isnan(float(v)):
+                    return None
+            except (TypeError, ValueError):
                 return None
             return float(v)
 
-        issues = 0
-        for pipe_id, pipe in self.pipe_items.items():
-            pdta  = pipe.pipe_data
-            fluid = pdta.get('fluid_state')
-            side  = pdta.get('pressure_side')
-            lbl   = pdta.get('circuit_label')
-            lbl   = None if lbl in (None, '', 'None') else lbl
-            ab    = module_abbrev(lbl) if lbl else None
-            # Cassette: shared-block columns carry the unit suffix
-            sfx   = f'-{ab}' if (system_type == 'cassette' and ab) else ''
+        def get_any(*cols):
+            for col in cols:
+                val = get(col)
+                if val is not None:
+                    return val
+            return None
 
-            verdict = None
+        def component_type(comp_id):
+            item = self.component_items.get(comp_id)
+            return item.component_data.get('type') if item else None
+
+        def component_label_abbrev(comp_id):
+            item = self.component_items.get(comp_id)
+            if not item:
+                return None
+            props = item.component_data.get('properties') or {}
+            return module_tag(props.get('circuit_label'))
+
+        def module_tag(label):
+            if label in (None, '', 'None'):
+                return None
+            return module_abbrev(label)
+
+        def _state_for_pipe(pipe_data):
+            fluid = pipe_data.get('fluid_state')
+            side = pipe_data.get('pressure_side')
+            lbl = pipe_data.get('circuit_label')
+            lbl = None if lbl in (None, '', 'None') else lbl
+            ab = module_tag(lbl)
+            sfx = f'-{ab}' if (system_type == 'cassette' and ab) else ''
+            start_id = pipe_data.get('start_component_id')
+            end_id = pipe_data.get('end_component_id')
+            start_type = component_type(start_id)
+            end_type = component_type(end_id)
+            start_port = pipe_data.get('start_port')
+            end_port = pipe_data.get('end_port')
+            expansion_types = {'TXV', 'CapTube', 'EEV'}
+            manifold_types = {'SplitterManifold', 'CombinerManifold', 'Junction'}
+            if ab is None:
+                ab = component_label_abbrev(start_id) or component_label_abbrev(end_id)
+                sfx = f'-{ab}' if (system_type == 'cassette' and ab) else ''
+            if start_type == 'Condenser' and start_port == 'outlet':
+                fluid, side = 'liquid', 'high'
+            elif start_type in expansion_types and start_port == 'outlet':
+                fluid, side = 'two-phase', 'low'
+            elif start_type == 'SplitterManifold' and end_type == 'Evaporator':
+                fluid, side = 'two-phase', 'low'
+            elif start_type == 'Evaporator' and str(start_port or '').startswith('outlet'):
+                fluid, side = 'gas', 'low'
+            elif start_type == 'CombinerManifold' or end_type == 'Compressor':
+                fluid, side = 'gas', 'low'
+
+            condenser_outlet_pipe = start_type == 'Condenser' and start_port == 'outlet'
+            expansion_inlet_pipe = end_type in expansion_types and end_port == 'inlet'
+            expansion_outlet_pipe = start_type in expansion_types
+            evap_outlet_pipe = start_type == 'Evaporator' and str(start_port or '').startswith('outlet')
+            suction_pipe = end_type == 'Compressor' and end_port == 'inlet'
+            discharge_pipe = start_type == 'Compressor' and start_port == 'outlet'
+
             if fluid == 'liquid' and side == 'high':
-                v = get(f'S.C-txv.{ab}') if ab else None
-                if v is None:
-                    v = get(f'S.C{sfx}')
-                if v is not None and v <= self._FLASH_GAS_SC_MIN:
-                    verdict = ('FLASH GAS',
-                               f'Subcooling {v:.1f} Â°F â€” liquid line is not fully liquid. '
-                               f'Vapor bubbles starve the TXV and wreck capacity.')
-            elif fluid == 'gas' and side == 'low':
-                v = get(f'S.H_{ab} coil') if ab else None
-                if v is None:
-                    v = get(f'S.H_total{sfx}')
-                if v is not None and v <= self._FLOODBACK_SH_MIN:
-                    verdict = ('FLOODBACK',
-                               f'Superheat {v:.1f} Â°F â€” liquid refrigerant returning toward '
-                               f'the compressor. Slugging risk.')
-            elif fluid == 'gas' and side == 'high':
-                t3a  = get(f'T_3a{sfx}')
-                tsat = get(f'T_sat.cond{sfx}')
-                if t3a is not None and tsat is not None and \
-                        (t3a - tsat) <= self._WET_DISCHARGE_SH_MIN:
-                    verdict = ('WET COMPRESSION',
-                               f'Discharge superheat {(t3a - tsat):.1f} Â°F â€” discharge gas '
-                               f'barely superheated; compressor may be ingesting liquid.')
+                txv_sc = get(f'S.C-txv.{ab}') if ab else None
+                cond_sc = get(f'S.C{sfx}') if get(f'S.C{sfx}') is not None else get('S.C')
+                if condenser_outlet_pipe:
+                    state = 'two-phase' if cond_sc is not None and cond_sc <= self._FLASH_GAS_SC_MIN else 'liquid'
+                    stripe_fraction = None
+                    if state == 'two-phase' and txv_sc is not None and txv_sc > self._FLASH_GAS_SC_MIN:
+                        state = 'liquid'
+                        stripe_fraction = 0.24
+                    return {
+                        'state': state,
+                        'chip': None,
+                        'chip_key': None,
+                        'stripe_fraction': stripe_fraction,
+                        'detail': (
+                            f'Condenser outlet subcooling {cond_sc:.1f} F.' if cond_sc is not None
+                            else 'Condenser outlet liquid state.'
+                        ),
+                    }
+                sc = txv_sc if txv_sc is not None else cond_sc
+                state = 'two-phase' if sc is not None and sc <= self._FLASH_GAS_SC_MIN else 'liquid'
+                return {
+                    'state': state,
+                    'chip': None,
+                    'chip_key': None,
+                    'detail': f'TXV inlet subcooling {txv_sc:.1f} F.' if txv_sc is not None else 'High-side liquid line.',
+                }
 
-            if not verdict:
+            if fluid == 'gas' and side == 'low':
+                coil_sh = get_any(
+                    f'S.H_{ab} coil',
+                    f'S.H_{(ab or "").upper()} coil',
+                    f'S.H_{ab} coil-{ab}',
+                    f'S.H_{(ab or "").upper()} coil-{ab}',
+                ) if ab else None
+                total_sh = get_any(f'S.H_total{sfx}', f'S.H_total-{ab}', 'S.H_total')
+                sh = total_sh if suction_pipe else coil_sh
+                if suction_pipe and total_sh is not None:
+                    sh = total_sh
+                elif evap_outlet_pipe and coil_sh is not None:
+                    sh = coil_sh
+                if sh is not None and sh <= self._FLOODBACK_SH_MIN:
+                    return {
+                        'state': 'two-phase',
+                        'chip': None,
+                        'chip_key': None,
+                        'detail': (
+                            f'Superheat {sh:.1f} F - liquid refrigerant may be returning '
+                            'toward the compressor.'
+                        ),
+                    }
+                return {
+                    'state': 'low-gas',
+                    'chip': None,
+                    'chip_key': None,
+                    'detail': f'Superheat {sh:.1f} F.' if sh is not None else 'Superheated suction gas.',
+                }
+
+            if fluid == 'gas' and side == 'high':
+                t3a = get(f'T_3a{sfx}')
+                tsat = get(f'T_sat.cond{sfx}')
+                dsh = (t3a - tsat) if (t3a is not None and tsat is not None) else None
+                if dsh is not None and dsh <= self._WET_DISCHARGE_SH_MIN:
+                    return {
+                        'state': 'two-phase',
+                        'chip': None,
+                        'chip_key': None,
+                        'detail': (
+                            f'Discharge superheat {dsh:.1f} F - discharge gas is barely '
+                            'superheated.'
+                        ),
+                    }
+                return {
+                    'state': 'high-gas',
+                    'chip': None,
+                    'chip_key': None,
+                    'detail': f'Discharge superheat {dsh:.1f} F.' if dsh is not None else 'High-side discharge gas.',
+                }
+
+            if fluid == 'two-phase':
+                return {
+                    'state': 'two-phase',
+                    'chip': None,
+                    'chip_key': None,
+                    'detail': 'Two-phase expansion/evaporator feed.',
+                }
+
+            return {
+                'state': 'unknown',
+                'chip': None,
+                'chip_key': None,
+                'detail': 'Refrigerant state is unknown because this segment is missing semantic measurements.',
+            }
+
+        palette = {
+            'liquid': ('#1565C0', None),
+            'low-gas': ('#F59E0B', None),
+            'high-gas': ('#D35400', None),
+            'two-phase': ('#1565C0', '#F59E0B'),
+            'unknown': ('#7C3AED', None),
+        }
+
+        rendered = 0
+        warnings = 0
+        rendered_chip_keys = set()
+        chip_count = 0
+
+        def _state_pen(color, width=5, style=Qt.PenStyle.SolidLine):
+            pen = QPen(QColor(color), width, style)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            return pen
+
+        def _apply_manifold_analysis_state():
+            for item in self.component_items.values():
+                comp_type = item.component_data.get('type')
+                manifold_item = getattr(item, '_manifold_item', None)
+                if manifold_item is None:
+                    continue
+                if comp_type == 'SplitterManifold':
+                    # Distributor internals are downstream of expansion: two-phase feed.
+                    manifold_item.setPen(_state_pen('#1565C0'))
+                    stripe = QGraphicsPathItem(manifold_item.path(), item)
+                    stripe.setPen(_state_pen('#F59E0B', style=Qt.PenStyle.DashLine))
+                    stripe.setZValue(manifold_item.zValue() + 1)
+                    self.overlay_items.append(stripe)
+                elif comp_type == 'CombinerManifold':
+                    # Header internals are evaporator outlet/suction gas.
+                    manifold_item.setPen(_state_pen('#F59E0B'))
+
+        for pipe_id, pipe in self.pipe_items.items():
+            state_info = _state_for_pipe(pipe.pipe_data)
+            if not state_info:
                 continue
-            issues += 1
-            name, detail = verdict
-            pen = QPen(QColor('#D500F9'), 6, Qt.PenStyle.DashLine)
+            rendered += 1
+            if state_info.get('warning'):
+                warnings += 1
+            base_color, stripe_color = palette[state_info['state']]
+            if state_info.get('stripe_fraction') is not None and stripe_color is None:
+                stripe_color = '#F59E0B'
+            pen_width = 5
+            pen_style = Qt.PenStyle.DotLine if state_info['state'] == 'unknown' else Qt.PenStyle.SolidLine
+            pen = QPen(QColor(base_color), pen_width, pen_style)
             pipe.setPen(pen)
             pipe._original_pen = pen  # survive select/deselect cycles
+            if stripe_color:
+                stripe_path = pipe.path()
+                stripe_fraction = state_info.get('stripe_fraction')
+                if stripe_fraction is not None:
+                    stripe_path = QPainterPath()
+                    stripe_path.moveTo(pipe.path().pointAtPercent(0))
+                    steps = 12
+                    for idx in range(1, steps + 1):
+                        pct = max(0.0, min(float(stripe_fraction), 1.0)) * idx / steps
+                        stripe_path.lineTo(pipe.path().pointAtPercent(pct))
+                stripe = QGraphicsPathItem(stripe_path)
+                stripe.setPos(pipe.pos())
+                stripe.setPen(QPen(QColor(stripe_color), pen_width, Qt.PenStyle.DashLine))
+                stripe.setZValue(pipe.zValue() + 1)
+                stripe.setToolTip(state_info.get('detail', ''))
+                self.scene.addItem(stripe)
+                self.overlay_items.append(stripe)
             try:
-                mid = pipe.path().pointAtPercent(0.5)
-                txt = QGraphicsSimpleTextItem(f'âš  {name}')
-                f = QFont()
-                f.setBold(True)
-                f.setPointSize(9)
-                txt.setFont(f)
-                txt.setBrush(QBrush(QColor('#C2185B')))
-                txt.setPos(mid.x() + 6, mid.y() - 18)
-                txt.setZValue(10)
-                self.scene.addItem(txt)
-                self.overlay_items.append(txt)
+                station_chips = [state_info] + list(state_info.get('extra_chips') or [])
+                for chip_info in station_chips:
+                    chip_text = chip_info.get('chip')
+                    chip_key = chip_info.get('chip_key')
+                    if not (chip_key and chip_text and chip_key not in rendered_chip_keys):
+                        continue
+                    pct = float(chip_info.get('chip_pct', 0.5))
+                    point = pipe.path().pointAtPercent(max(0.0, min(pct, 1.0)))
+                    if self._add_state_chip(point, chip_text, chip_info.get('detail', state_info.get('detail', ''))):
+                        rendered_chip_keys.add(chip_key)
+                        chip_count += 1
             except Exception:
                 pass
-            pipe.setToolTip(pipe.toolTip() + f'\n\nâš  {name}: {detail}')
-        print(f"[STATE OVERLAY] {issues} state violation(s) flagged")
+            detail = state_info.get('detail', '')
+            if detail:
+                pipe.setToolTip((pipe.toolTip() or '') + f"\n\nAnalysis: {detail}")
+        _apply_manifold_analysis_state()
+        print(f"[STATE OVERLAY] rendered={rendered} warning_states={warnings} chips={chip_count}")
 
-    def on_mode_changed(self, mode_text):
-        if not hasattr(self, "scene"):
-            return
-        self._sync_toolbar_mode(mode_text)
-        # Rebuild scene to add/remove mapping overlays
-        self.build_scene_from_model()
+    def _add_state_chip(self, point, chip_text, tooltip=''):
+        if not chip_text or str(chip_text).strip().lower() == 'nan':
+            return False
+        from PyQt6.QtGui import QFont
+        txt = QGraphicsTextItem(chip_text)
+        f = QFont()
+        f.setBold(True)
+        f.setPointSize(7)
+        txt.setFont(f)
+        txt.setDefaultTextColor(QColor('#1f2933'))
+        txt_rect = txt.boundingRect().adjusted(-4, -2, 4, 2)
+        bg = QGraphicsRectItem(txt_rect)
+        bg.setBrush(QBrush(QColor(255, 255, 255, 238)))
+        bg.setPen(QPen(QColor('#9fb3c8'), 1))
+        # Nudge off any already-placed chip: try the default spot, then step
+        # upward/downward until clear (these are true scene-coord items).
+        base_x, base_y = point.x() + 8, point.y() - 30
+        rw = txt_rect.width(); rh = txt_rect.height()
+        reserved = getattr(self, '_state_chip_rects', None)
+        if reserved is None:
+            reserved = self._state_chip_rects = []
+        pos_x, pos_y = base_x, base_y
+        for k in range(0, 12):
+            for dy in ((0,) if k == 0 else (-(rh + 4) * k, (rh + 4) * k)):
+                cand = QRectF(base_x, base_y + dy, rw, rh)
+                if not any(cand.intersects(r) for r in reserved) and \
+                   not any(cand.intersects(r) for r in getattr(self, '_value_chip_rects', [])):
+                    pos_x, pos_y = base_x, base_y + dy
+                    reserved.append(cand)
+                    break
+            else:
+                continue
+            break
+        bg.setPos(pos_x, pos_y)
+        bg.setZValue(63)
+        txt.setPos(bg.pos().x() + 4, bg.pos().y() + 1)
+        txt.setZValue(64)
+        bg.setToolTip(tooltip or '')
+        txt.setToolTip(tooltip or '')
+        self.scene.addItem(bg)
+        self.scene.addItem(txt)
+        self.overlay_items.extend([bg, txt])
+        return True
+
+    def add_condenser_secondary_flow_arrows(self):
+        """Draw condenser air/water arrows as scene overlays.
+
+        The component paint also has subtle equipment glyphs, but mapped
+        sensor dots need a visible secondary-fluid path that sits above pipes.
+        """
+        from PyQt6.QtWidgets import QGraphicsPathItem
+        from PyQt6.QtGui import QBrush, QPen
+
+        def add_vertical_arrow(x, start_y, tip_y, color):
+            path = QPainterPath()
+            path.moveTo(x, start_y)
+            path.lineTo(x, tip_y)
+
+            direction_up = tip_y < start_y
+            base_y = tip_y + (12 if direction_up else -12)
+            path.moveTo(x - 7, base_y)
+            path.lineTo(x + 7, base_y)
+            path.lineTo(x, tip_y)
+            path.closeSubpath()
+
+            item = QGraphicsPathItem(path)
+            item.setPen(QPen(QColor(color), 4))
+            item.setBrush(QBrush(QColor(color)))
+            item.setZValue(75)
+            self.scene.addItem(item)
+            self.overlay_items.append(item)
+            return item
+
+        for item in self.component_items.values():
+            comp_data = item.component_data or {}
+            if comp_data.get('type') != 'Condenser':
+                continue
+
+            props = comp_data.get('properties', {}) or {}
+            condenser_type = props.get('condenser_type', 'Air Cooled')
+            mapped_rect = item.mapRectToScene(item.rect())
+            rect = mapped_rect.boundingRect() if hasattr(mapped_rect, 'boundingRect') else mapped_rect
+
+            if condenser_type == 'Water Cooled':
+                water_color = '#0077B6'
+                water_in_x = rect.left() + rect.width() * 0.25
+                water_out_x = rect.left() + rect.width() * 0.75
+                add_vertical_arrow(water_in_x, rect.bottom() + 32, rect.bottom(), water_color)
+                add_vertical_arrow(water_out_x, rect.top(), rect.top() - 32, water_color)
+            else:
+                air_color = '#607D8B'
+                for idx in range(1, 4):
+                    x = rect.left() + rect.width() * idx / 4
+                    add_vertical_arrow(x, rect.bottom() + 28, rect.bottom(), air_color)
+                    add_vertical_arrow(x, rect.top(), rect.top() - 28, air_color)
 
     def add_sensor_role_dots(self):
         """Create sensor dots at strategic locations with canonical role keys.
@@ -1415,8 +2102,7 @@ class DiagramWidget(QWidget):
         if topo:
             self.data_manager.apply_sensor_point_defaults(topo)
 
-        mode_text = self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
-        is_analysis = (mode_text == 'Analysis')
+        is_analysis = self._analysis_enabled()
         
         role_dot_candidates = []
         direct_custom_dots = []
@@ -1427,34 +2113,37 @@ class DiagramWidget(QWidget):
             comp_type = item.component_data.get('type')
 
             if (self.data_manager.diagram_model.get('_simple_mode')
-                    and comp_type in ('SplitterManifold', 'CombinerManifold', 'Junction')):
+                    and comp_type in ('SplitterManifold', 'CombinerManifold', 'Junction')
+                    and getattr(self.data_manager, 'csv_data', None) is None):
                 continue
-            
-            for port_name, port in item.ports.items():
+
+            props = item.component_data.get('properties', {}) or {}
+            rendered_port_names = set()
+
+            def append_role_dot_candidate(port_name, port, port_pos, synthetic=False):
                 try:
                     port_type = port.port_def.get('type')
                 except Exception:
                     port_type = None
-                
+
                 # Show dots for in, out, and sensor type ports
                 if port_type in ('in', 'out', 'sensor'):
                     # For Sensor components, only the dedicated measurement (sensor) port
                     # should be mappable. Skip inlet/outlet to avoid accidental mapping.
                     if comp_type == 'Sensor' and port_type in ('in', 'out'):
-                        continue
+                        return
                     # Generated LabeledBox components (hot-gas bypass/solenoid,
                     # liquid-line solenoid) use ports only for pipe routing. The
                     # actual mapped solenoid sensors live in canonical sensor
                     # boxes, so showing port dots here creates confusing floaters.
                     if (self.data_manager.diagram_model.get('_simple_mode')
                             and comp_type == 'LabeledBox'):
-                        continue
+                        return
                     # Avoid duplicate dots near evaporators by suppressing manifold connecting ports
                     if comp_type == 'SplitterManifold' and port_type == 'out':
-                        continue
+                        return
                     if comp_type == 'CombinerManifold' and port_type == 'in':
-                        continue
-                    port_pos = port.get_scene_position()
+                        return
                     pos = self._offset_role_dot_from_port(port_pos, port)
 
                     # Create meaningful role key for diagnostics
@@ -1469,7 +2158,7 @@ class DiagramWidget(QWidget):
                         role_key = f"{comp_type}.{comp_id}.{port_name}"
 
                     enabled = self.data_manager.is_sensor_point_enabled(role_key)
-                    
+
                     # Resolve canonical name for a much cleaner label
                     display_name = role_key
                     try:
@@ -1487,10 +2176,7 @@ class DiagramWidget(QWidget):
                     label = ""
                     if mapped_sensor:
                         val = self.data_manager.get_sensor_value(mapped_sensor)
-                        if isinstance(val, (int, float)):
-                            label = f"{val:.1f}"
-                        elif val is not None:
-                            label = str(val)
+                        label = self._format_sensor_value_label(val)
 
                     side = self._role_dot_side_for_port(port)
                     role_dot_candidates.append({
@@ -1503,7 +2189,31 @@ class DiagramWidget(QWidget):
                         'label': label,
                         'enabled': enabled,
                         'is_custom': False,
+                        'lock_position': True,
                     })
+
+            for port_name, port in item.ports.items():
+                rendered_port_names.add(port_name)
+                append_role_dot_candidate(port_name, port, port.get_scene_position())
+
+            # Simple-mode component graphics intentionally omit some schema
+            # ports (for example compressor pressure taps and condenser water
+            # sensors). The mapping resolver still treats those roles as valid,
+            # so synthesize diagram dots for any enumerated role without an
+            # actual PortItem.
+            try:
+                from port_resolver import enumerate_ports_for_component
+                expected_ports = enumerate_ports_for_component(comp_type, props)
+            except Exception:
+                expected_ports = []
+            for port_name in expected_ports:
+                if port_name in rendered_port_names:
+                    continue
+                proxy = self._role_dot_port_proxy(item, comp_type, port_name)
+                if proxy is None:
+                    continue
+                port_pos = self._scene_pos_for_role_dot_proxy(item, proxy)
+                append_role_dot_candidate(port_name, proxy, port_pos, synthetic=True)
 
         # Add custom sensor points
         custom_sensors = self.data_manager.diagram_model.get('custom_sensors', {})
@@ -1524,18 +2234,23 @@ class DiagramWidget(QWidget):
             mapped_sensor = self.data_manager.get_mapped_sensor_for_role(sensor_id)
             calc_key = sensor_data.get('calc_key')
             label = ""
+            # In Analysis mode prefer the computed value, but fall back to the
+            # mapped lab value when the calc column is missing/NaN — otherwise a
+            # calc dot that shows fine in normal mode goes blank in Analysis.
             if is_analysis and calc_key and self._processed_means is not None:
-                val = self._processed_means.get(calc_key)
-                try:
-                    label = f"{float(val):.1f}" if val is not None else ""
-                except Exception:
-                    label = ""
-            elif mapped_sensor:
+                val = self._processed_value_for_calc_key(calc_key)
+                if val is not None:
+                    label = self._format_calculated_role_label(sensor_id, calc_key, val)
+            if (not label and mapped_sensor
+                    and not (sensor_data.get('calc_only') or sensor_id == 'calc.SC_cond')):
                 val = self.data_manager.get_sensor_value(mapped_sensor)
-                if isinstance(val, (int, float)):
-                    label = f"{val:.1f}"
-                elif val is not None:
-                    label = str(val)
+                # A calc dot falling back to its mapped lab value must still
+                # carry the SH/SC prefix, so it reads "SH 6.7F" like the
+                # computed chips — not a bare "6.7".
+                if calc_key:
+                    label = self._format_calculated_role_label(sensor_id, calc_key, val)
+                else:
+                    label = self._format_sensor_value_label(val)
 
             hosted = self._edge_host_for_custom_dot(pos)
             if hosted:
@@ -1552,13 +2267,14 @@ class DiagramWidget(QWidget):
                     'custom_sensor_data': sensor_data,
                     'sensor_id': sensor_id,
                     'component_rect': hosted['rect'],
+                    'lock_position': True,
                 })
                 continue
             
             direct_custom_dots.append((pos, sensor_id, label, sensor_data, side))
 
         for candidate in self._distribute_role_dot_candidates(role_dot_candidates):
-            if not self._should_render_role_dot(candidate['role_key'], mode_text):
+            if not self._should_render_role_dot(candidate['role_key']):
                 continue
             self._add_role_dot(candidate['pos'], candidate['role_key'], candidate['label'],
                                is_custom=candidate.get('is_custom', False),
@@ -1569,7 +2285,7 @@ class DiagramWidget(QWidget):
                                side=candidate.get('chip_side', candidate['side']))
 
         for pos, sensor_id, label, sensor_data, side in direct_custom_dots:
-            if not self._should_render_role_dot(sensor_id, mode_text):
+            if not self._should_render_role_dot(sensor_id):
                 continue
             self._add_role_dot(pos, sensor_id, label, is_custom=True,
                                custom_sensor_data=sensor_data,
@@ -1578,19 +2294,15 @@ class DiagramWidget(QWidget):
         # TODO: Add sensors from sensor boxes
         # This will be implemented in Phase 2
 
-    def _revealing_hidden_mapping_candidates(self, mode_text: str | None = None) -> bool:
+    def _revealing_hidden_mapping_candidates(self) -> bool:
         """Reveal hidden, unmapped diagram dots while assigning an unmatched CSV column."""
         if getattr(self.data_manager, 'csv_data', None) is None:
-            return False
-        if mode_text is None:
-            mode_text = self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
-        if mode_text != 'Mapping':
             return False
         needs_assignment = getattr(self.data_manager, 'selected_sensor_needs_diagram_assignment', None)
         return bool(needs_assignment and needs_assignment())
 
-    def _is_revealed_candidate_dot(self, role_key: str, mode_text: str | None = None) -> bool:
-        if not self._revealing_hidden_mapping_candidates(mode_text):
+    def _is_revealed_candidate_dot(self, role_key: str) -> bool:
+        if not self._revealing_hidden_mapping_candidates():
             return False
         if self.data_manager.get_mapped_sensor_for_role(role_key):
             return False
@@ -1601,13 +2313,17 @@ class DiagramWidget(QWidget):
         )
         return is_process or is_instrument
 
-    def _should_render_role_dot(self, role_key: str, mode_text: str) -> bool:
+    def _should_render_role_dot(self, role_key: str) -> bool:
         """After CSV load, show mapped dots only, plus temporary assignment candidates."""
+        custom = (self.data_manager.diagram_model.get('custom_sensors') or {}).get(role_key) or {}
+        if (self._analysis_enabled() and custom.get('calc_key')
+                and self._processed_value_for_calc_key(custom.get('calc_key')) is not None):
+            return True
         if getattr(self.data_manager, 'csv_data', None) is None:
             return True
         if self.data_manager.get_mapped_sensor_for_role(role_key):
             return True
-        return self._is_revealed_candidate_dot(role_key, mode_text)
+        return self._is_revealed_candidate_dot(role_key)
 
     def _get_sensor_color(self, role_key, mapped_sensor=None):
         """Get color based on sensor status (range-aware)"""
@@ -1630,6 +2346,100 @@ class DiagramWidget(QWidget):
         }
 
         return QColor(color_map.get(status, '#FFA500'))  # Default to orange if unknown
+
+    def _canonical_for_marker_shape(self, role_key):
+        """Resolve the canonical ID used to choose marker geometry."""
+        try:
+            from sensor_canonical import resolve_canonical_from_role_key
+            cres = resolve_canonical_from_role_key(self.data_manager.diagram_model, role_key)
+            if cres and cres[0]:
+                return cres[0]
+        except Exception:
+            pass
+        return role_key or ''
+
+    def _sensor_marker_kind(self, role_key):
+        """Return a stable semantic marker kind for a role/canonical ID."""
+        canon = self._canonical_for_marker_shape(role_key)
+        if canon.startswith('calc.SH'):
+            return 'superheat'
+        if canon.startswith('calc.SC'):
+            return 'subcooling'
+        if canon.startswith('P_') or canon.startswith(('P_suc', 'P_disc', 'P_dis')):
+            return 'pressure'
+        if canon.startswith(('m_dot', 'gpm')):
+            return 'flow'
+        if canon.startswith('rpm'):
+            return 'speed'
+        if canon.startswith('calc.'):
+            return 'calculated'
+        if canon.startswith('T_'):
+            return 'temperature'
+        return 'other'
+
+    def _sensor_marker_shape_name(self, kind):
+        return {
+            'temperature': 'circle',
+            'pressure': 'diamond',
+            'flow': 'right triangle',
+            'superheat': 'hexagon',
+            'subcooling': 'square',
+            'speed': 'vertical rectangle',
+            'calculated': 'small square',
+            'other': 'small square',
+        }.get(kind, 'small square')
+
+    def _make_sensor_marker_item(self, role_key, radius):
+        """Create the correct visible marker shape for the role kind."""
+        from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsRectItem, QGraphicsPathItem
+
+        kind = self._sensor_marker_kind(role_key)
+        r = float(radius)
+        d = r * 2.0
+
+        if kind == 'temperature':
+            item = QGraphicsEllipseItem(-r, -r, d, d)
+        elif kind == 'pressure':
+            path = QPainterPath()
+            path.moveTo(0, -r)
+            path.lineTo(r, 0)
+            path.lineTo(0, r)
+            path.lineTo(-r, 0)
+            path.closeSubpath()
+            item = QGraphicsPathItem(path)
+        elif kind == 'flow':
+            path = QPainterPath()
+            path.moveTo(r, 0)
+            path.lineTo(-r, -r)
+            path.lineTo(-r, r)
+            path.closeSubpath()
+            item = QGraphicsPathItem(path)
+        elif kind == 'superheat':
+            path = QPainterPath()
+            for idx, (x, y) in enumerate([
+                (-r * 0.55, -r),
+                (r * 0.55, -r),
+                (r, 0),
+                (r * 0.55, r),
+                (-r * 0.55, r),
+                (-r, 0),
+            ]):
+                if idx == 0:
+                    path.moveTo(x, y)
+                else:
+                    path.lineTo(x, y)
+            path.closeSubpath()
+            item = QGraphicsPathItem(path)
+        elif kind == 'subcooling':
+            item = QGraphicsRectItem(-r, -r, d, d)
+        elif kind == 'speed':
+            item = QGraphicsRectItem(-r * 0.6, -r, r * 1.2, d)
+        else:
+            item = QGraphicsRectItem(-r * 0.8, -r * 0.8, d * 0.8, d * 0.8)
+
+        item.setData(3, kind)
+        item.setData(4, self._sensor_marker_shape_name(kind))
+        return item
 
     def _short_role_label(self, role_key):
         """Compact visible dot label; full canonical stays in the tooltip."""
@@ -1683,6 +2493,9 @@ class DiagramWidget(QWidget):
         if canon.startswith('T_txv.'):
             direction = parts[2][0] if len(parts) > 2 and parts[2] else ''
             return f"txv {parts[1]} {direction}" if len(parts) > 2 else canon
+        if canon.startswith('T_eev.'):
+            suffix = parts[2] if len(parts) > 2 else ''
+            return f"eev {parts[1]} {suffix[:1]}" if suffix else canon
         if canon.startswith('T_dist.'):
             return f"dist {parts[1]}" if len(parts) > 1 else canon
         if canon.startswith('T_defrost.'):
@@ -1739,7 +2552,7 @@ class DiagramWidget(QWidget):
         """Return component edge metadata when a generated custom dot belongs
         on an equipment edge. Free-air dots are intentionally left alone."""
         host_types = {
-            'Compressor', 'Condenser', 'TXV', 'Evaporator', 'Distributor',
+            'Compressor', 'Condenser', 'TXV', 'CapTube', 'EEV', 'Evaporator', 'Distributor',
             'Header', 'SplitterManifold', 'CombinerManifold', 'SensorBulb',
             'HotGasBypassValve', 'HotGasLoop', 'RemoteLineEndpoint',
         }
@@ -1795,6 +2608,111 @@ class DiagramWidget(QWidget):
 
         return best
 
+    def _role_dot_port_proxy(self, component_item, comp_type, port_name):
+        """Build a lightweight PortItem-like anchor for schema ports omitted
+        from the simplified graphics item."""
+        schema = SCHEMAS.get(comp_type, {}) or {}
+        props = component_item.component_data.get('properties', {}) or {}
+        port_def = None
+
+        for candidate in schema.get('ports', []) or []:
+            if candidate.get('name') == port_name:
+                port_def = dict(candidate)
+                break
+
+        if port_def is None and comp_type == 'Condenser':
+            condenser_type = props.get('condenser_type', 'Air Cooled')
+            conditional = (schema.get('conditional_ports') or {}).get(condenser_type, [])
+            for candidate in conditional:
+                if candidate.get('name') == port_name:
+                    port_def = dict(candidate)
+                    break
+
+        if port_def is None:
+            return None
+
+        class RoleDotPortProxy:
+            pass
+
+        proxy = RoleDotPortProxy()
+        proxy.parent_component = component_item
+        proxy.port_name = port_name
+        proxy.port_def = port_def
+        return proxy
+
+    def _scene_pos_for_role_dot_proxy(self, component_item, port_proxy):
+        """Map a synthetic schema port position onto the component scene."""
+        try:
+            width = component_item.rect().width()
+            height = component_item.rect().height()
+            px, py = port_proxy.port_def.get('position', [0.5, 0.5])
+            return component_item.mapToScene(QPointF(px * width, py * height))
+        except Exception:
+            try:
+                rect = component_item.sceneBoundingRect()
+                return QPointF(rect.center().x(), rect.center().y())
+            except Exception:
+                return QPointF(0, 0)
+
+    def _route_endpoint_for_port(self, port_item, distance_along_pipe=0.0):
+        """Return a point on the actual connected pipe route for this port.
+
+        Generated simple diagrams can draw a pipe into a different edge than
+        the legacy schema port definition suggests. The pipe route is the
+        visible truth, so role dots should anchor there.
+        """
+        if port_item is None:
+            return None
+
+        for pipe in getattr(port_item, 'connected_pipes', []) or []:
+            route = pipe.pipe_data.get('route') or []
+            if len(route) < 2:
+                continue
+
+            if getattr(pipe, 'start_port_item', None) is port_item:
+                endpoint = route[0]
+                neighbor = route[1]
+            elif getattr(pipe, 'end_port_item', None) is port_item:
+                endpoint = route[-1]
+                neighbor = route[-2]
+            else:
+                continue
+
+            x0, y0 = float(endpoint[0]), float(endpoint[1])
+            if not distance_along_pipe:
+                return QPointF(x0, y0)
+
+            dx = float(neighbor[0]) - x0
+            dy = float(neighbor[1]) - y0
+            length = (dx * dx + dy * dy) ** 0.5
+            if length <= 0.001:
+                return QPointF(x0, y0)
+            step = min(float(distance_along_pipe), length)
+            return QPointF(x0 + dx / length * step,
+                           y0 + dy / length * step)
+
+        return None
+
+    def _pipe_anchor_for_role_dot(self, comp, comp_type, port_name, port_item):
+        """Prefer the visible refrigeration pipe route over schema side rules."""
+        direct = self._route_endpoint_for_port(port_item)
+        if direct is not None:
+            return direct
+
+        # Pressure taps are measurements on the suction/discharge lines, not
+        # separate side ports on the compressor body.
+        aliases = {
+            ('Compressor', 'SP'): ('inlet', 14.0),
+            ('Compressor', 'DP'): ('outlet', 14.0),
+        }
+        alias = aliases.get((comp_type, port_name))
+        if alias:
+            ref_port_name, distance = alias
+            ref_port = getattr(comp, 'ports', {}).get(ref_port_name)
+            return self._route_endpoint_for_port(ref_port, distance)
+
+        return None
+
     def _offset_role_dot_from_port(self, scene_pos, port_item):
         """Draw mapping dots on component perimeters, not in open air."""
         if port_item is None:
@@ -1816,6 +2734,10 @@ class DiagramWidget(QWidget):
                 rect = comp.sceneBoundingRect()
             except Exception:
                 return scene_pos
+
+        pipe_anchor = self._pipe_anchor_for_role_dot(comp, comp_type, port_name, port_item)
+        if pipe_anchor is not None:
+            return pipe_anchor
 
         def clamp(value, lo, hi):
             if hi < lo:
@@ -1853,12 +2775,14 @@ class DiagramWidget(QWidget):
                 return on_right(scene_pos.y())
 
         elif comp_type == 'Condenser':
+            water_in_x = rect.left() + rect.width() * 0.25
+            water_out_x = rect.left() + rect.width() * 0.75
             if port_name == 'water_flow_gpm':
-                return on_right(rect.center().y())
+                return QPointF(water_in_x, rect.bottom() + 16)
             elif port_name == 'water_in_temp':
-                return on_left(rect.top() + rect.height() * 0.35)
+                return on_bottom(water_in_x)
             elif port_name == 'water_out_temp':
-                return on_left(rect.top() + rect.height() * 0.65)
+                return on_top(water_out_x)
             elif port_name == 'inlet':
                 return on_left(rect.top() + 18)
             elif port_name == 'outlet':
@@ -1984,6 +2908,21 @@ class DiagramWidget(QWidget):
 
         distributed = []
         for (_component_id, side), group in groups.items():
+            movable_group = []
+            for candidate in group:
+                if candidate.get('lock_position'):
+                    candidate['pos'] = candidate['ideal_pos']
+                    candidate['chip_side'] = self._outward_side_for_dot(
+                        candidate['pos'], candidate.get('port_item'), side
+                    )
+                    distributed.append(candidate)
+                else:
+                    movable_group.append(candidate)
+
+            group = movable_group
+            if not group:
+                continue
+
             if len(group) == 1:
                 group[0]['pos'] = group[0]['ideal_pos']
                 group[0]['chip_side'] = self._outward_side_for_dot(
@@ -2089,26 +3028,22 @@ class DiagramWidget(QWidget):
     def _add_role_dot(self, scene_pos, role_key, label_text, is_custom=False,
                       custom_sensor_data=None, sensor_id=None, port_item=None,
                       enabled=True, side='right'):
-        from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
+        from PyQt6.QtWidgets import QGraphicsTextItem, QGraphicsLineItem
         from PyQt6.QtGui import QBrush, QPen
 
         mapped_sensor = self.data_manager.get_mapped_sensor_for_role(role_key)
         is_selected = mapped_sensor and mapped_sensor in self.data_manager.selected_sensors
-        is_revealed_candidate = self._is_revealed_candidate_dot(
-            role_key,
-            self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
-        )
+        is_revealed_candidate = self._is_revealed_candidate_dot(role_key)
 
-        # Dot item - use square for custom sensors, circle for component ports
+        # Marker item - geometry shows measurement kind; color shows status.
         # Selected: bright cyan, 2.8x scale (distinct from out-of-range red)
         SELECTED_COLOR = QColor('#00D4FF')  # Bright cyan - impossible to miss
         DOT_RADIUS = 6
-        DOT_DIAMETER = DOT_RADIUS * 2
         SELECTED_SCALE = 2.2
 
         # DISABLED: grey, semi-transparent, no label, X drawn on top
         if not enabled:
-            dot = QGraphicsEllipseItem(-DOT_RADIUS, -DOT_RADIUS, DOT_DIAMETER, DOT_DIAMETER) if not is_custom else QGraphicsRectItem(-DOT_RADIUS, -DOT_RADIUS, DOT_DIAMETER, DOT_DIAMETER)
+            dot = self._make_sensor_marker_item(role_key, DOT_RADIUS)
             disabled_color = QColor('#606060')
             disabled_color.setAlphaF(0.45)
             dot.setBrush(QBrush(disabled_color))
@@ -2135,49 +3070,28 @@ class DiagramWidget(QWidget):
             dot.mousePressEvent = on_disabled_press
             return  # skip label for disabled dots
 
-        if is_custom:
-            # Circle for custom sensors
-            dot = QGraphicsEllipseItem(-DOT_RADIUS, -DOT_RADIUS, DOT_DIAMETER, DOT_DIAMETER)
-            if is_selected:
-                dot.setBrush(QBrush(SELECTED_COLOR))
-                dot.setPen(QPen(QColor(Qt.GlobalColor.black), 2))
-                dot.setScale(SELECTED_SCALE)
-            elif is_revealed_candidate:
-                ghost = QColor('#90A4AE')
-                ghost.setAlphaF(0.55)
-                dot.setBrush(QBrush(ghost))
-                dot.setPen(QPen(QColor('#546E7A'), 1))
-                dot.setScale(1.0)
-                dot.setOpacity(0.65)
-            else:
-                dot_color = self._get_sensor_color(role_key, mapped_sensor)
-                dot.setBrush(QBrush(dot_color))
-                dot.setPen(QPen(QColor(Qt.GlobalColor.black), 1))
-                dot.setScale(1.0)
-
-            # Store sensor_id for property viewing and deletion
-            if sensor_id:
-                dot.setData(2, sensor_id)  # Store sensor_id in slot 2
-                dot.setData(1, 'custom_sensor')  # Mark as custom sensor in slot 1
+        dot = self._make_sensor_marker_item(role_key, DOT_RADIUS)
+        if is_selected:
+            dot.setBrush(QBrush(SELECTED_COLOR))
+            dot.setPen(QPen(QColor(Qt.GlobalColor.black), 2))
+            dot.setScale(SELECTED_SCALE)
+        elif is_revealed_candidate:
+            ghost = QColor('#90A4AE')
+            ghost.setAlphaF(0.55)
+            dot.setBrush(QBrush(ghost))
+            dot.setPen(QPen(QColor('#546E7A'), 1))
+            dot.setScale(1.0)
+            dot.setOpacity(0.65)
         else:
-            # Circle for component ports
-            dot = QGraphicsEllipseItem(-DOT_RADIUS, -DOT_RADIUS, DOT_DIAMETER, DOT_DIAMETER)
-            if is_selected:
-                dot.setBrush(QBrush(SELECTED_COLOR))
-                dot.setPen(QPen(QColor(Qt.GlobalColor.black), 2))
-                dot.setScale(SELECTED_SCALE)
-            elif is_revealed_candidate:
-                ghost = QColor('#90A4AE')
-                ghost.setAlphaF(0.55)
-                dot.setBrush(QBrush(ghost))
-                dot.setPen(QPen(QColor('#546E7A'), 1))
-                dot.setScale(1.0)
-                dot.setOpacity(0.65)
-            else:
-                dot_color = self._get_sensor_color(role_key, mapped_sensor)
-                dot.setBrush(QBrush(dot_color))
-                dot.setPen(QPen(QColor(Qt.GlobalColor.black), 1))
-                dot.setScale(1.0)
+            dot_color = self._get_sensor_color(role_key, mapped_sensor)
+            dot.setBrush(QBrush(dot_color))
+            dot.setPen(QPen(QColor(Qt.GlobalColor.black), 1))
+            dot.setScale(1.0)
+
+        # Store sensor_id for property viewing and deletion
+        if is_custom and sensor_id:
+            dot.setData(2, sensor_id)  # Store sensor_id in slot 2
+            dot.setData(1, 'custom_sensor')  # Mark as custom sensor in slot 1
         
         dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
         dot.setZValue(100)
@@ -2195,6 +3109,9 @@ class DiagramWidget(QWidget):
             if cres:
                 canon_lines.append(f"<b>{cres[0]}</b>")
                 canon_lines.append(cres[1])
+            shape_name = dot.data(4)
+            if shape_name:
+                canon_lines.append(f"<small>Marker: {shape_name}</small>")
             if mapped_sensor:
                 canon_lines.append(f"<i>Mapped:</i> {mapped_sensor}")
             elif is_revealed_candidate:
@@ -2332,25 +3249,93 @@ class DiagramWidget(QWidget):
 
         pad_x, pad_y = 3.0, 1.0
         gap = dot_radius + 4
-        if side == 'left':
-            lx, ly = -gap - br.width() - pad_x, -br.height() / 2
-        elif side == 'top':
-            lx, ly = -br.width() / 2, -gap - br.height() - pad_y
-        elif side == 'bottom':
-            lx, ly = -br.width() / 2, gap + pad_y
-        else:  # right (default)
-            lx, ly = gap + pad_x, -br.height() / 2
+        w, h = br.width(), br.height()
+
+        # Candidate local offsets, in preference order starting from the
+        # requested side. Chips are screen-pixel children (ignore zoom), so a
+        # collision is tested in SCENE units by dividing by the current view
+        # scale — footprints correctly grow as the diagram zooms out.
+        def offsets_for(s):
+            base = {
+                'left':   (-gap - w - pad_x, -gap - h - pad_y),
+                'right':  (gap + pad_x,      -gap - h - pad_y),
+                'top':    (-w / 2,           -gap - h - pad_y),
+                'bottom': (-w / 2,            gap + pad_y),
+            }
+            return base.get(s, base['right'])
+
+        order = [side, 'right', 'left', 'top', 'bottom']
+        seen = set(); order = [s for s in order if not (s in seen or seen.add(s))]
+        candidates = []
+        for s in order:
+            ox, oy = offsets_for(s)
+            candidates.append((ox, oy))
+            # vertical stagger fallbacks on the same side (stack up / down)
+            for k in (1, 2, 3):
+                step = (h + 4) * k
+                candidates.append((ox, oy - step))
+                candidates.append((ox, oy + step))
+
+        scale = self._current_view_scale() or 1.0
+        # Seed obstacles once per build with component/section title rects and
+        # any CRIT/badge overlays, so chips also avoid drawn labels — not just
+        # each other.
+        if not getattr(self, '_chip_obstacles_seeded', False):
+            self._chip_obstacles_seeded = True
+            from PyQt6.QtWidgets import QGraphicsSimpleTextItem, QGraphicsTextItem
+            # NARROW component boxes (compressor/condenser/TXV ~120px) are
+            # obstacles: their single port chips must be pushed to the open
+            # side, never left clipped by the box. WIDE boxes (evaporator/
+            # splitter/header ~240px) are NOT seeded — their inline per-circuit
+            # chips have no room to escape and forcing them off-box just makes
+            # them collide with each other.
+            for item in self.component_items.values():
+                try:
+                    r = item.sceneBoundingRect()
+                    if r.width() < 160:
+                        self._value_chip_rects.append(r)
+                except Exception:
+                    pass
+            for it in self.scene.items():
+                if isinstance(it, (QGraphicsSimpleTextItem, QGraphicsTextItem)):
+                    t = (it.text() if isinstance(it, QGraphicsSimpleTextItem)
+                         else it.toPlainText()).strip()
+                    if t.startswith('[') or t in ('CRIT',) or 'CRITICAL' in t:
+                        self._value_chip_rects.append(it.sceneBoundingRect())
+        dot_scene = dot.scenePos()
+        chosen = candidates[0]
+        for ox, oy in candidates:
+            sx = dot_scene.x() + (ox - pad_x) / scale
+            sy = dot_scene.y() + (oy - pad_y) / scale
+            sw = (w + 2 * pad_x) / scale
+            sh = (h + 2 * pad_y) / scale
+            cand_rect = QRectF(sx, sy, sw, sh)
+            if not any(cand_rect.intersects(r) for r in self._value_chip_rects):
+                chosen = (ox, oy)
+                self._value_chip_rects.append(cand_rect)
+                break
+        else:
+            # everything collided — keep first candidate but still reserve it
+            ox, oy = chosen
+            self._value_chip_rects.append(QRectF(
+                dot_scene.x() + (ox - pad_x) / scale,
+                dot_scene.y() + (oy - pad_y) / scale,
+                (w + 2 * pad_x) / scale, (h + 2 * pad_y) / scale))
+        lx, ly = chosen
 
         chip_rect = QRectF(lx - pad_x, ly - pad_y,
                            br.width() + 2 * pad_x, br.height() + 2 * pad_y)
         path = QPainterPath()
         path.addRoundedRect(chip_rect, 3, 3)
+        is_negative_sc = text.startswith('SC -') or text.startswith('SC −')
         chip = QGraphicsPathItem(path, dot)
-        chip.setBrush(QBrush(QColor(255, 255, 255, 150)))
-        chip.setPen(QPen(QColor(31, 59, 92, 60), 0.5))
+        chip.setBrush(QBrush(QColor(255, 235, 235, 245) if is_negative_sc else QColor(255, 255, 255, 235)))
+        chip.setPen(QPen(QColor('#c0392b') if is_negative_sc else QColor(31, 59, 92, 120), 1.1 if is_negative_sc else 0.5))
         chip.setZValue(1)
 
         label.setParentItem(chip)
+        if is_negative_sc:
+            label.setBrush(QBrush(QColor('#c0392b')))
         label.setPos(lx, ly)
         label.setZValue(2)
 
@@ -2360,7 +3345,7 @@ class DiagramWidget(QWidget):
             dot = sensor_info.get('dot')
             if dot:
                 role_key = sensor_info['role_key']
-                if not self._should_render_role_dot(role_key, self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'):
+                if not self._should_render_role_dot(role_key):
                     dot.setVisible(False)
                     for key in ('number_item', 'value_item', 'label_item'):
                         item = sensor_info.get(key)
@@ -2414,13 +3399,14 @@ class DiagramWidget(QWidget):
                             map_action = menu.addAction("Map Sensor")
                             map_action.triggered.connect(lambda: perform_single_click_action(rk))
                         
-                        menu.addSeparator()
-                        
-                        edit_action = menu.addAction("Edit Label")
-                        edit_action.triggered.connect(lambda checked, bi=box_item, s=sid: self._edit_sensor_label(bi, s))
-                        
-                        delete_action = menu.addAction("Delete Sensor")
-                        delete_action.triggered.connect(lambda checked, bi=box_item, s=sid: self._delete_sensor_from_box(bi, s))
+                        if self._edit_layout_enabled():
+                            menu.addSeparator()
+
+                            edit_action = menu.addAction("Edit Label")
+                            edit_action.triggered.connect(lambda checked, bi=box_item, s=sid: self._edit_sensor_label(bi, s))
+
+                            delete_action = menu.addAction("Delete Sensor")
+                            delete_action.triggered.connect(lambda checked, bi=box_item, s=sid: self._delete_sensor_from_box(bi, s))
                         
                         menu.exec(event.screenPos())
                         event.accept()
@@ -2448,10 +3434,8 @@ class DiagramWidget(QWidget):
 
     def update_sensor_dots(self):
         """Update existing sensor dots with current mapping status without rebuilding the entire scene."""
-        # Get current mode
-        mode_text = self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
-        is_analysis = (mode_text == 'Analysis')
-        reveal_candidates = self._revealing_hidden_mapping_candidates(mode_text)
+        is_analysis = self._analysis_enabled()
+        reveal_candidates = self._revealing_hidden_mapping_candidates()
         if reveal_candidates != getattr(self, '_last_reveal_unmapped_candidates', False):
             self._last_reveal_unmapped_candidates = reveal_candidates
             self.build_scene_from_model()
@@ -2467,8 +3451,8 @@ class DiagramWidget(QWidget):
                 # Get current mapping status
                 mapped_sensor = self.data_manager.get_mapped_sensor_for_role(role_key)
                 is_selected = mapped_sensor and mapped_sensor in self.data_manager.selected_sensors
-                is_candidate = self._is_revealed_candidate_dot(role_key, mode_text)
-                should_show = self._should_render_role_dot(role_key, mode_text)
+                is_candidate = self._is_revealed_candidate_dot(role_key)
+                should_show = self._should_render_role_dot(role_key)
                 if hasattr(item, 'setVisible'):
                     item.setVisible(should_show)
                 if hasattr(item, 'setOpacity'):
@@ -2512,12 +3496,7 @@ class DiagramWidget(QWidget):
                     if mapped_sensor:
                         # Always show values, not sensor numbers, so time range/aggregation changes are visible
                         val = self.data_manager.get_sensor_value(mapped_sensor)
-                        if val is None:
-                            label_text = ""
-                        elif isinstance(val, (int, float)):
-                            label_text = f"{val:.1f}"
-                        else:
-                            label_text = str(val)
+                        label_text = self._format_sensor_value_label(val)
                     else:
                         label_text = ""
                     item.setPlainText(label_text)
@@ -2539,8 +3518,8 @@ class DiagramWidget(QWidget):
                     role_key = sensor_info['role_key']
                     mapped_sensor = self.data_manager.get_mapped_sensor_for_role(role_key)
                     is_selected = mapped_sensor and mapped_sensor in self.data_manager.selected_sensors
-                    is_candidate = self._is_revealed_candidate_dot(role_key, mode_text)
-                    should_show = self._should_render_role_dot(role_key, mode_text)
+                    is_candidate = self._is_revealed_candidate_dot(role_key)
+                    should_show = self._should_render_role_dot(role_key)
                     dot.setVisible(should_show)
                     dot.setOpacity(0.65 if is_candidate else 1.0)
                     for extra_item in (number_item, value_item, sensor_info.get('label_item')):
@@ -2581,12 +3560,7 @@ class DiagramWidget(QWidget):
                     if value_item:
                         if mapped_sensor:
                             val = self.data_manager.get_sensor_value(mapped_sensor)
-                            if val is None:
-                                value_text = ""
-                            elif isinstance(val, (int, float)):
-                                value_text = f"{val:.1f}"
-                            else:
-                                value_text = str(val)
+                            value_text = self._format_sensor_value_label(val)
                         else:
                             value_text = ""
                         value_item.setPlainText(value_text)
@@ -2594,12 +3568,15 @@ class DiagramWidget(QWidget):
                     updated_count += 1
 
     def apply_interaction_mode(self):
-        mapping_mode = getattr(self, 'mode_combo', None) and self.mode_combo.currentText() in ('Mapping', 'Analysis')
+        edit_enabled = self._edit_layout_enabled()
         for comp in self.component_items.values():
-            comp.setFlag(comp.GraphicsItemFlag.ItemIsMovable, not mapping_mode)
-            comp.setFlag(comp.GraphicsItemFlag.ItemIsSelectable, not mapping_mode)
+            comp.setFlag(comp.GraphicsItemFlag.ItemIsMovable, edit_enabled)
+            comp.setFlag(comp.GraphicsItemFlag.ItemIsSelectable, edit_enabled)
         for pipe in self.pipe_items.values():
-            pipe.setAcceptedMouseButtons(Qt.MouseButton.NoButton if mapping_mode else (Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton))
+            pipe.setAcceptedMouseButtons(
+                (Qt.MouseButton.LeftButton | Qt.MouseButton.RightButton)
+                if edit_enabled else Qt.MouseButton.NoButton
+            )
     
     def view_wheel_event(self, event):
         """Scroll the diagram document; Ctrl+wheel zooms."""
@@ -4199,11 +5176,9 @@ class DiagramWidget(QWidget):
             
             from diagram_components import PortItem
             if isinstance(item, PortItem):
-                # Ensure we're in Drawing mode so overlays don't block clicks
-                if getattr(self, 'mode_combo', None) and self.mode_combo.currentText() != 'Drawing':
-                    self.mode_combo.setCurrentText('Drawing')
-                    print("[MODE] Auto-switched to Drawing for pipe creation")
-                    # Scene rebuild invalidates references; exit and let user click again
+                if not self._edit_layout_enabled():
+                    print("[PIPE] Ignored port click because Edit layout is off")
+                    QGraphicsView.mousePressEvent(self.view, event)
                     return
                 # Port clicked - pipe mode
                 if self.pipe_start_port is None:

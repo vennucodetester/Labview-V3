@@ -9,7 +9,7 @@ Updated for Goal-2C to include rated capacity and rated power.
 """
 
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QDoubleSpinBox,
-                             QDialogButtonBox, QLabel, QGroupBox)
+                             QDialogButtonBox, QLabel, QGroupBox, QMessageBox)
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
@@ -31,9 +31,12 @@ class InputDialog(QDialog):
         ('gpm_water', 'Water Flow Rate (GPM)'),
     ]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, title: str = "Enter Rated Performance Inputs",
+                 instructions: str | None = None, required_fields: list[str] | None = None):
         super().__init__(parent)
-        self.setWindowTitle("Enter Rated Performance Inputs")
+        self.required_fields = set(required_fields or [])
+        self.instructions_text = instructions
+        self.setWindowTitle(title)
         self.setModal(True)
         self.setMinimumWidth(500)
 
@@ -48,7 +51,7 @@ class InputDialog(QDialog):
         layout.setSpacing(15)
 
         # Title label
-        title = QLabel("Rated Performance Inputs")
+        title = QLabel(self.windowTitle())
         title_font = QFont()
         title_font.setBold(True)
         title_font.setPointSize(12)
@@ -57,6 +60,7 @@ class InputDialog(QDialog):
 
         # Instructions
         instructions = QLabel(
+            self.instructions_text or
             "Enter the rated performance values and system parameters.\n"
             "Water flow rate is required for water-side mass flow calculations."
         )
@@ -83,7 +87,8 @@ class InputDialog(QDialog):
             self.fields[field_name] = spinbox
 
             # Add to form
-            form_layout.addRow(f"{field_label}:", spinbox)
+            suffix = " *" if field_name in self.required_fields else ""
+            form_layout.addRow(f"{field_label}{suffix}:", spinbox)
 
         input_group.setLayout(form_layout)
         layout.addWidget(input_group)
@@ -143,7 +148,10 @@ class InputDialog(QDialog):
         """
         missing_fields = []
 
+        fields_to_check = self.required_fields or set(self.fields)
         for field_name, spinbox in self.fields.items():
+            if field_name not in fields_to_check:
+                continue
             if spinbox.value() == 0.0:
                 # Find the user-friendly label
                 label = next(
@@ -165,12 +173,10 @@ class InputDialog(QDialog):
         Currently allows closing even with empty fields (lenient approach).
         Validation happens in calculations_widget before running calculations.
         """
-        # Optional: Uncomment to enforce validation before closing
-        # is_valid, error_message = self.validate_data()
-        # if not is_valid:
-        #     from PyQt6.QtWidgets import QMessageBox
-        #     QMessageBox.warning(self, "Incomplete Data", error_message)
-        #     return  # Don't close dialog
+        is_valid, error_message = self.validate_data()
+        if not is_valid:
+            QMessageBox.warning(self, "Approximate Values Needed", error_message)
+            return
 
         super().accept()
 

@@ -103,12 +103,41 @@ SCHEMAS = {
             "superheat_setting": {"type": "integer", "default": 10},
             "cv_txv": {"type": "float", "default": 0.5, "min": 0.01, "max": 5.0},
             "circuit_label": {"type": "enum", "default": "None", "options": ["None", "Left", "Center", "Right"]},
-            "expansion_device_type": {"type": "enum", "default": "TXV", "options": ["TXV", "Cap Tube"]}
+            "expansion_device_type": {"type": "enum", "default": "TXV", "options": ["TXV", "Cap Tube", "EEV"]}
         },
         "ports": [
             {"name": "inlet", "type": "in", "fluid_state": "liquid", "pressure_side": "high", "position": [0.5, 0]},
             {"name": "outlet", "type": "out", "fluid_state": "two-phase", "pressure_side": "low", "position": [0.5, 1]},
             {"name": "bulb", "type": "sensor", "fluid_state": "any", "pressure_side": "low", "position": [0.5, 0.5]}
+        ],
+        "zones": []
+    },
+
+    "CapTube": {
+        "properties": {
+            "bore_in": {"type": "float", "default": 0.036, "min": 0.001, "max": 0.25},
+            "length_in": {"type": "integer", "default": 120, "min": 1, "max": 600},
+            "circuit_label": {"type": "enum", "default": "None", "options": ["None", "Left", "Center", "Right", "LH", "CTR", "RH"]},
+            "expansion_device_type": {"type": "enum", "default": "Cap Tube", "options": ["TXV", "Cap Tube", "EEV"]}
+        },
+        "ports": [
+            {"name": "inlet", "type": "in", "fluid_state": "liquid", "pressure_side": "high", "position": [0.5, 0]},
+            {"name": "outlet", "type": "out", "fluid_state": "two-phase", "pressure_side": "low", "position": [0.5, 1]}
+        ],
+        "zones": []
+    },
+
+    "EEV": {
+        "properties": {
+            "model": {"type": "string", "default": ""},
+            "steps": {"type": "integer", "default": 480, "min": 1, "max": 10000},
+            "max_opening_percent": {"type": "integer", "default": 100, "min": 1, "max": 100},
+            "circuit_label": {"type": "enum", "default": "None", "options": ["None", "Left", "Center", "Right", "LH", "CTR", "RH"]},
+            "expansion_device_type": {"type": "enum", "default": "EEV", "options": ["TXV", "Cap Tube", "EEV"]}
+        },
+        "ports": [
+            {"name": "inlet", "type": "in", "fluid_state": "liquid", "pressure_side": "high", "position": [0.5, 0]},
+            {"name": "outlet", "type": "out", "fluid_state": "two-phase", "pressure_side": "low", "position": [0.5, 1]}
         ],
         "zones": []
     },

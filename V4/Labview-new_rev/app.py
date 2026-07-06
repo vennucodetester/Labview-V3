@@ -1,5 +1,6 @@
 ﻿import sys
 import argparse
+from pathlib import Path
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QTabWidget, QLabel, QFrame, QPushButton,
                              QFileDialog)
@@ -12,6 +13,11 @@ from launch_sync import ensure_launch_cmds
 
 
 ensure_launch_cmds()
+APP_ROOT = Path(__file__).resolve().parent
+BUILD_DATE = "2026-07-04"
+BUILD_FOLDER = APP_ROOT.name
+BUILD_LABEL = f"build {BUILD_DATE} - {BUILD_FOLDER}"
+BUILD_PATH_LABEL = f"{BUILD_LABEL} - {APP_ROOT}"
 
 
 def parse_args():
@@ -44,7 +50,7 @@ class MainWindow(QMainWindow):
     """The main application window, orchestrating all other components."""
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("HVAC System Analyzer (Python Edition)")
+        self.setWindowTitle(f"HVAC System Analyzer - {BUILD_LABEL}")
         self.setGeometry(100, 100, 1600, 900)
         self.set_light_theme()
 
@@ -85,6 +91,10 @@ class MainWindow(QMainWindow):
         )
         # Diagnostics card 'Show on diagram' â†’ switch tab + highlight component
         self.diagnostics_widget.locate_on_diagram.connect(self.on_locate_finding)
+        self.diagnostics_widget.show_on_cycle.connect(self.on_show_finding_on_cycle)
+        self.diagnostics_widget.findings_updated.connect(
+            self.diagram_widget.set_diagnostic_findings
+        )
 
         # --- Assemble Layout ---
         self.sensor_panel.setFixedWidth(350) 
@@ -103,6 +113,7 @@ class MainWindow(QMainWindow):
         QTimer.singleShot(500, self.save_state)
 
         # Ensure window becomes visible and focused shortly after startup
+        QTimer.singleShot(50, lambda: self.statusBar().showMessage(f"Running {BUILD_PATH_LABEL}", 8000))
         QTimer.singleShot(150, self._bring_to_front)
 
     def _bring_to_front(self):
@@ -158,6 +169,7 @@ class MainWindow(QMainWindow):
         
         # Connect diagram widget sensor port clicks to sensor panel highlighting
         self.diagram_widget.sensor_port_clicked.connect(self.sensor_panel.highlight_and_scroll_to_sensor)
+        self.diagram_widget.mapping_report_requested.connect(self.sensor_panel.show_mapping_report)
         self.sensor_panel.sensor_locate_requested.connect(self.show_sensor_on_diagram)
 
     def show_sensor_on_diagram(self, sensor_name: str, role_key: str = "", canonical: str = ""):
@@ -217,6 +229,8 @@ class MainWindow(QMainWindow):
         case = None
         diagram = None
         opened_as = ""
+        diagram_updated = False
+        current_version = 0
 
         if payload.get("id") and isinstance(payload.get("topology"), dict):
             case = payload
@@ -249,15 +263,24 @@ class MainWindow(QMainWindow):
 
         if not case:
             return False
-        if not diagram:
-            from diagram_from_request import generate_case_diagram
 
-            diagram = generate_case_diagram(case.get("topology", {}), self._case_library().families())
+        from case_library import apply_case_to_session, regenerate_diagram_if_stale
 
-        from case_library import apply_case_to_session
+        diagram, diagram_updated, _old_version, current_version = regenerate_diagram_if_stale(
+            case, diagram or {}, self._case_library().families())
+        if diagram_updated and opened_as == "case":
+            try:
+                with open(os.path.join(folder, "diagram.json"), "w", encoding="utf-8") as f:
+                    json.dump(diagram, f, indent=2)
+            except Exception as exc:
+                print(f"[CASE_LIBRARY] Could not save regenerated diagram: {exc}")
 
         self._case_diagram_autosave_enabled = False
         apply_case_to_session(case, diagram, self.data_manager, emit_signals=False)
+        try:
+            self.data_manager.mapping_integrity_check("case_open")
+        except Exception as exc:
+            print(f"[MAPPING_INTEGRITY] case_open failed: {exc}")
         try:
             lib_cases = os.path.abspath(self._case_library().cases_dir)
             selected = os.path.abspath(file_name)
@@ -272,7 +295,11 @@ class MainWindow(QMainWindow):
         self.show_diagram_tab_and_fit()
         self.diagram_widget.build_scene_from_model()
         label = case.get("model") or case.get("id")
-        self.statusBar().showMessage(f"Opened as {opened_as}: {label}", 4000)
+        if diagram_updated:
+            self.statusBar().showMessage(
+                f"Diagram updated to latest layout (v{current_version})", 6000)
+        else:
+            self.statusBar().showMessage(f"Opened as {opened_as}: {label}", 4000)
         return True
     
     def save_session_file_dialog(self):
@@ -365,21 +392,12 @@ class MainWindow(QMainWindow):
         menu = self.menuBar().addMenu('&Cases')
         act_cases = menu.addAction('Cases...')
         act_cases.triggered.connect(self.open_cases)
-        act_new_case = menu.addAction('New Case / Process Diagram...')
-        act_new_case.triggered.connect(self.new_case_process_diagram)
 
     def _case_library(self):
         from case_library import CaseLibrary
         if not hasattr(self, '_case_library_inst'):
             self._case_library_inst = CaseLibrary()
         return self._case_library_inst
-
-    def new_case_process_diagram(self):
-        from case_dialogs import NewCaseDialog
-        dlg = NewCaseDialog(self._case_library(), parent=self, data_manager=self.data_manager)
-        if dlg.exec() and self.data_manager.case_id:
-            self._case_diagram_autosave_enabled = True
-            self.show_diagram_tab_and_fit()
 
     def open_cases(self):
         from case_dialogs import CaseLibraryDialog
@@ -414,6 +432,11 @@ class MainWindow(QMainWindow):
         """Jump to the Diagram tab and flash the component a finding points at."""
         self.tabs.setCurrentWidget(self.diagram_widget)
         self.diagram_widget.highlight_finding(finding)
+
+    def on_show_finding_on_cycle(self, finding):
+        """Jump to Diagram Analysis and highlight the finding on the P-h cycle."""
+        self.tabs.setCurrentWidget(self.diagram_widget)
+        self.diagram_widget.show_finding_on_cycle(finding)
 
     def on_tab_changed(self, index):
         # When user switches tabs, refresh that tab only

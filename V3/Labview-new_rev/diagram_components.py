@@ -66,8 +66,7 @@ class BaseComponentItem(QGraphicsRectItem):
             label_text = f"[{component_data['type']}]"
         self.label = QGraphicsTextItem(label_text, self)
         self.label.setDefaultTextColor(QColor("#111111"))
-        # Center the label later or put it at top-left
-        self.label.setPos(5, 5)
+        self._center_equipment_label(size)
         
         # IMPROVED: Smoother interaction flags
         simple = component_data.get('_simple_mode', False)
@@ -99,8 +98,10 @@ class BaseComponentItem(QGraphicsRectItem):
             for port in self.ports.values():
                 port.hide()
 
-        # Simple-mode manifolds: hide ports (stubs drawn by the item itself)
-        if simple and component_data.get('type') in ('SplitterManifold', 'CombinerManifold'):
+        # Generated/simple diagrams use separate mapping dots for sensors. Keep
+        # the real pipe ports available for geometry, but do not draw them as
+        # extra dots on top of refrigeration lines.
+        if simple:
             for port in self.ports.values():
                 port.hide()
 
@@ -152,7 +153,10 @@ class BaseComponentItem(QGraphicsRectItem):
                 f"<div align='center' style='color:{txt_color};font-family:sans-serif;"
                 f"font-size:10pt;'>{lbl_text.replace(chr(10), '<br>')}</div>")
             self.label.setTextWidth(w)
-            self.label.setPos(0, max(0, (h - self.label.boundingRect().height()) / 2))
+            if self._is_air_band_label(lbl_text):
+                self._position_air_band_label(lbl_text, w, h, txt_color)
+            else:
+                self.label.setPos(0, max(0, (h - self.label.boundingRect().height()) / 2))
             self.setZValue(-5)
 
         # Boundary — dashed rect outline with label, furthest behind
@@ -166,6 +170,57 @@ class BaseComponentItem(QGraphicsRectItem):
             self.label.setDefaultTextColor(QColor('#888888'))
             self.label.setPos(5, 5)
             self.setZValue(-10)
+
+    def _center_equipment_label(self, size):
+        """Keep equipment names out of the top/bottom port bands."""
+        width = float(size.get('width', 100))
+        height = float(size.get('height', 60))
+        comp_type = self.component_data.get('type')
+        if comp_type in ('Boundary', 'DecorativeRect', 'LabeledBox', 'AirArrow'):
+            self.label.setPos(5, 5)
+            return
+
+        font = self.label.font()
+        font.setPointSizeF(8.5)
+        self.label.setFont(font)
+        text = self.label.toPlainText()
+        self.label.setHtml(
+            "<div align='center' "
+            "style='background-color:rgba(255,255,255,185);"
+            "color:#111111;font-family:sans-serif;font-size:8.5pt;"
+            "padding:1px 3px;'>"
+            f"{text}</div>"
+        )
+        self.label.setTextWidth(width)
+        br = self.label.boundingRect()
+        self.label.setPos(0, max(0, (height - br.height()) / 2))
+        self.label.setZValue(2)
+
+    def _is_air_band_label(self, text):
+        label = (text or '').lower()
+        return 'discharge air' in label or label == 'return air'
+
+    def _position_air_band_label(self, text, width, height, text_color):
+        """Move generated air-row names out of the sensor/value lane."""
+        font = self.label.font()
+        font.setPointSizeF(8.0)
+        self.label.setFont(font)
+        self.label.setHtml(
+            "<div align='center' "
+            "style='background-color:rgba(255,255,255,205);"
+            f"color:{text_color};font-family:sans-serif;font-size:8pt;"
+            "padding:1px 4px;'>"
+            f"{text.replace(chr(10), '<br>')}</div>"
+        )
+        self.label.setTextWidth(width)
+        br = self.label.boundingRect()
+        label_lower = (text or '').lower()
+        if 'primary' in label_lower:
+            y = -br.height() - 3
+        else:
+            y = height + 2
+        self.label.setPos(0, y)
+        self.label.setZValue(20)
     
     def _legacy_paint(self, painter, option, widget=None):
         """Standard paint with no custom shapes."""
@@ -2522,8 +2577,7 @@ class AirSensorArrayComponentItem(QGraphicsRectItem):
         label_text = f"{curtain_type} Air"
         self.label = QGraphicsTextItem(label_text, self)
         self.label.setDefaultTextColor(QColor("#000000"))
-        # Position label above the rectangle
-        self.label.setPos(5, -20)
+        self._position_air_label(width, height, curtain_type)
         
         # Interaction flags
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsMovable, True)
@@ -2571,6 +2625,7 @@ class AirSensorArrayComponentItem(QGraphicsRectItem):
         # Update label
         curtain_type = self.component_data.get('properties', {}).get('curtain_type', 'Primary')
         self.label.setPlainText(f"{curtain_type} Air")
+        self._position_air_label(width, height, curtain_type)
         
         # Update fill color based on curtain type
         if curtain_type == 'Primary':
@@ -2634,6 +2689,18 @@ class AirSensorArrayComponentItem(QGraphicsRectItem):
         
         if total_restored > 0:
             print(f"[REBUILD] Restored {total_restored} pipe connections to {comp_type}")
+
+    def _position_air_label(self, width, height, curtain_type):
+        """Keep air-row labels out of the sensor/value chip lane."""
+        font = self.label.font()
+        font.setPointSizeF(8.5)
+        self.label.setFont(font)
+        self.label.setTextWidth(width)
+        br = self.label.boundingRect()
+        x = max(0, (width - br.width()) / 2)
+        y = -br.height() - 4 if curtain_type == 'Primary' else height + 2
+        self.label.setPos(x, y)
+        self.label.setZValue(1)
     
     def update_size(self, width, height):
         """Update the block size and rebuild ports."""

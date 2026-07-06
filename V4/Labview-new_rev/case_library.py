@@ -4,6 +4,7 @@ import copy
 import getpass
 import json
 import os
+import shutil
 import uuid
 from datetime import datetime
 from typing import List, Optional
@@ -52,6 +53,7 @@ NEW_TOPOLOGY_KEYS = {
     "cassette_count",
     "cassette_airflow",
     "circuits",
+    "expansion_device",
     "defrost_type",
     "condenser_cooling",
     "shelf_rows",
@@ -122,6 +124,13 @@ def clean_topology(topology: dict, families: dict | None = None) -> dict:
     if defrost not in {"none", "off_time", "electric", "hot_gas", "cool_gas"}:
         defrost = "hot_gas" if topo.get("mode") == "cassette_lt" else "none"
 
+    expansion = str(topo.get("expansion_device") or topo.get("expansion_type") or "txv").lower()
+    expansion = expansion.replace(" ", "_").replace("-", "_")
+    if expansion in {"cap", "captube", "capillary", "capillary_tube"}:
+        expansion = "cap_tube"
+    if expansion not in {"txv", "cap_tube", "eev"}:
+        expansion = "txv"
+
     try:
         circuits = max(1, min(12, int(topo.get("circuits") or topo.get("circuits_per_coil") or 6)))
     except (TypeError, ValueError):
@@ -153,6 +162,7 @@ def clean_topology(topology: dict, families: dict | None = None) -> dict:
         "cassette_count": cassette_count,
         "cassette_airflow": cassette_airflow,
         "circuits": circuits,
+        "expansion_device": expansion,
         "defrost_type": defrost,
         "condenser_cooling": topo.get("condenser_cooling") or topo.get("condenser_cooling_new") or "Water",
         "shelf_rows": shelf_rows,
@@ -208,6 +218,10 @@ def ensure_old_topology(topology: dict, families: dict | None = None) -> dict:
         "cassette_count": topo.get("cassette_count"),
         "cassette_airflow": topo.get("cassette_airflow", "conventional"),
         "circuits": circuits,
+        "expansion_device": topo.get("expansion_device", "txv"),
+        "expansion_type": {"txv": "TXV", "cap_tube": "Cap Tube", "eev": "EEV"}.get(
+            topo.get("expansion_device", "txv"), "TXV"
+        ),
         "defrost_type": topo.get("defrost_type", "none"),
         "condenser_cooling_new": topo.get("condenser_cooling", "Water"),
         "shelf_width_in": rules.get("shelf_width_in", 48 if family == "insight" else 30),
@@ -227,6 +241,7 @@ def topology_one_liner(case: dict, families: dict | None = None) -> str:
     return (
         f"{rules.get('display', family)}; {topo.get('size_count') or topo.get('modules') or topo.get('num_doors')} "
         f"{size_label}; {system}; {topo.get('circuits') or topo.get('circuits_per_coil', 6)} circuits; "
+        f"{topo.get('expansion_device', 'txv').replace('_', ' ').upper()}; "
         f"{topo.get('condenser_cooling', 'Water')}"
     )
 
@@ -237,7 +252,26 @@ class CaseLibrary:
         self.cases_dir = os.path.join(self.base, "cases")
         self.family_path = os.path.join(self.base, "case_families.json")
         os.makedirs(self.cases_dir, exist_ok=True)
+        self.archive_legacy_projects()
         self.ensure_family_rulebook()
+
+    def archive_legacy_projects(self) -> None:
+        """Archive old request projects once, then remove the live folder."""
+        projects_dir = os.path.abspath(os.path.join(self.base, "projects"))
+        base_dir = os.path.abspath(self.base)
+        if not os.path.isdir(projects_dir):
+            return
+        if os.path.commonpath([base_dir, projects_dir]) != base_dir:
+            print(f"[CASE_LIBRARY] Refusing to archive unexpected path: {projects_dir}")
+            return
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_base = os.path.join(base_dir, f"_archive_projects_{stamp}")
+        try:
+            shutil.make_archive(archive_base, "zip", projects_dir)
+            shutil.rmtree(projects_dir)
+            print(f"[CASE_LIBRARY] Archived legacy projects to {archive_base}.zip")
+        except Exception as exc:
+            print(f"[CASE_LIBRARY] Failed archiving legacy projects: {exc}")
 
     @staticmethod
     def _read(path: str, default):
@@ -327,6 +361,15 @@ class CaseLibrary:
 
     def load_diagram(self, case_id: str) -> dict:
         return self._read(self.diagram_path(case_id), {})
+
+    def load_current_diagram(self, case: dict) -> tuple[dict, bool, int, int]:
+        """Load a case diagram, regenerating stale generator output in place."""
+        diagram = self.load_diagram(case["id"])
+        diagram, updated, old_version, current_version = regenerate_diagram_if_stale(
+            case, diagram, self.families())
+        if updated:
+            self.save_diagram(case["id"], diagram)
+        return diagram, updated, old_version, current_version
 
     def tests_for_case(self, case_id: str) -> List[dict]:
         d = os.path.join(self.case_dir(case_id), "tests")
@@ -427,11 +470,197 @@ def apply_case_to_session(case: dict, diagram: dict, data_manager, emit_signals:
         data_manager.data_changed.emit()
 
 
+def _as_generator_version(value) -> int:
+    try:
+        return int(value)
+    except Exception:
+        return 0
+
+
+def _current_generator_version() -> int:
+    from diagram_from_request import DIAGRAM_GENERATOR_VERSION
+
+    return _as_generator_version(DIAGRAM_GENERATOR_VERSION)
+
+
+def _diagram_role_keys(model: dict) -> set[str]:
+    """Return role keys that exist in a generated diagram model."""
+    model = model or {}
+    role_keys: set[str] = set()
+
+    for cid, comp in (model.get("components") or {}).items():
+        ctype = comp.get("type")
+        props = comp.get("properties", {}) or {}
+        try:
+            from port_resolver import enumerate_ports_for_component
+
+            ports = enumerate_ports_for_component(ctype, props)
+        except Exception:
+            ports = []
+        for port in ports:
+            role_keys.add(f"{ctype}.{cid}.{port}")
+
+        if ctype == "ShelvingGrid":
+            shelf_rows = int(props.get("shelf_rows", 6) or 6)
+            if props.get("shelving_type", "Modular") == "Modular":
+                cols_total = int(props.get("module_count", 3) or 3) + 1
+            else:
+                cols_total = int(props.get("door_count", 3) or 3) + 1
+            for col in range(cols_total):
+                role_keys.add(f"ShelvingGrid.{cid}.sensor_r0_top_c{col}")
+            for row in range(shelf_rows):
+                for col in range(cols_total):
+                    role_keys.add(f"ShelvingGrid.{cid}.sensor_r{row}_bottom_c{col}")
+
+        if ctype == "Fan":
+            for idx in range(int(props.get("sensor_count", 2) or 2)):
+                role_keys.add(f"Fan.{cid}.sensor_{idx}")
+
+        if ctype == "AirSensorArray":
+            curtain = (props.get("curtain_type") or "Primary") + "Air"
+            count = int(props.get("sensor_count", 11) or 11)
+            for idx in range(1, count + 1):
+                role_keys.add(f"{curtain}.{cid}.{idx}")
+                role_keys.add(f"AirSensorArray.{cid}.{idx}")
+
+    for box_id, box in (model.get("sensor_boxes") or {}).items():
+        for sensor in box.get("sensors", []) or []:
+            sensor_id = sensor.get("id")
+            if sensor_id:
+                role_keys.add(f"sensorbox.{box_id}.{sensor_id}")
+
+    role_keys.update((model.get("custom_sensors") or {}).keys())
+    return role_keys
+
+
+def _circuit_tag_from_label(label: str) -> str:
+    value = str(label or "").strip()
+    lower = value.lower()
+    return {
+        "left": "lh",
+        "lh": "lh",
+        "center": "ctr",
+        "centre": "ctr",
+        "ctr": "ctr",
+        "right": "rh",
+        "rh": "rh",
+    }.get(lower, lower)
+
+
+def _legacy_txv_bulb_canonical(model: dict, role_key: str) -> str | None:
+    parts = str(role_key or "").split(".")
+    if len(parts) != 3 or parts[0] != "TXV" or parts[2] != "bulb":
+        return None
+    comp = (model.get("components") or {}).get(parts[1]) or {}
+    if comp.get("type") != "TXV":
+        return None
+    props = comp.get("properties") or {}
+    if str(props.get("expansion_device_type") or "TXV").lower() != "txv":
+        return None
+    tag = _circuit_tag_from_label(props.get("circuit_label"))
+    if not tag or tag == "none":
+        return None
+    canonical = f"T_txv.{tag}.bulb"
+    if canonical in (model.get("custom_sensors") or {}):
+        return canonical
+    return None
+
+
+def _merge_saved_mappings(regenerated: dict, saved: dict) -> tuple[int, int, int]:
+    """Carry old mappings onto regenerated output without restoring stale geometry."""
+    if not isinstance(saved, dict):
+        return 0, 0, 0
+
+    old_custom = saved.get("custom_sensors") or {}
+    new_custom = regenerated.setdefault("custom_sensors", {})
+    custom_preserved = 0
+    custom_extra = 0
+    layout_fields = {
+        "type", "position", "label", "calc_key", "display_side",
+        "component_id", "edge", "side", "anchor",
+    }
+    for sensor_id, old_data in old_custom.items():
+        if sensor_id in new_custom and isinstance(old_data, dict) and isinstance(new_custom[sensor_id], dict):
+            extras = {k: copy.deepcopy(v) for k, v in old_data.items() if k not in layout_fields}
+            if extras:
+                new_custom[sensor_id].update(extras)
+                custom_preserved += 1
+        elif str(sensor_id).startswith("custom_"):
+            new_custom[sensor_id] = copy.deepcopy(old_data)
+            custom_extra += 1
+
+    role_keys = _diagram_role_keys(regenerated)
+    old_roles = saved.get("sensor_roles") or {}
+    new_roles = regenerated.setdefault("sensor_roles", {})
+    role_preserved = 0
+    dropped = 0
+    for role_key, sensor_name in old_roles.items():
+        target_key = role_key if role_key in role_keys else _legacy_txv_bulb_canonical(regenerated, role_key)
+        if target_key and sensor_name not in (None, ""):
+            new_roles[target_key] = sensor_name
+            role_preserved += 1
+        else:
+            dropped += 1
+
+    return role_preserved, custom_preserved + custom_extra, dropped
+
+
+def regenerate_diagram_if_stale(
+    case: dict,
+    diagram: dict,
+    family_rulebook: dict | None = None,
+) -> tuple[dict, bool, int, int]:
+    """Regenerate stale saved case diagrams and preserve compatible mappings."""
+    current_version = _current_generator_version()
+    old_version = _as_generator_version((diagram or {}).get("_generator_version"))
+    if isinstance(diagram, dict) and diagram.get("components") and old_version >= current_version:
+        return diagram, False, old_version, current_version
+
+    from diagram_from_request import generate_case_diagram
+
+    regenerated = generate_case_diagram(case.get("topology", {}), family_rulebook)
+    if case.get("id"):
+        regenerated["_case_id"] = case.get("id")
+    roles, custom, dropped = _merge_saved_mappings(regenerated, diagram or {})
+    regenerated["_generator_version"] = current_version
+    print(
+        f"[CASE_LIBRARY] Regenerated diagram for {case.get('id') or case.get('model')}: "
+        f"v{old_version} -> v{current_version}; preserved {roles} role mapping(s), "
+        f"{custom} custom sensor entr{'y' if custom == 1 else 'ies'}; dropped {dropped} stale mapping(s)"
+    )
+    return regenerated, True, old_version, current_version
+
+
+def regenerate_diagram_for_case(
+    case: dict,
+    saved_diagram: dict | None = None,
+    family_rulebook: dict | None = None,
+) -> dict:
+    """Regenerate a diagram after an intentional topology edit.
+
+    Unlike regenerate_diagram_if_stale(), this always rebuilds from the case
+    topology, then carries forward compatible sensor mappings/custom dots.
+    """
+    from diagram_from_request import generate_case_diagram
+
+    regenerated = generate_case_diagram(case.get("topology", {}), family_rulebook or FAMILY_RULEBOOK)
+    if case.get("id"):
+        regenerated["_case_id"] = case.get("id")
+    roles, custom, dropped = _merge_saved_mappings(regenerated, saved_diagram or {})
+    regenerated["_generator_version"] = _current_generator_version()
+    print(
+        f"[CASE_LIBRARY] Regenerated diagram for edited case {case.get('id') or case.get('model')}: "
+        f"preserved {roles} role mapping(s), {custom} custom sensor entr"
+        f"{'y' if custom == 1 else 'ies'}; dropped {dropped} stale mapping(s)"
+    )
+    return regenerated
+
+
 def test_to_printable_request(test: dict, case: dict) -> dict:
     req = copy.deepcopy(test)
     req["case_model"] = case.get("model", "")
     req["topology"] = ensure_old_topology(case.get("topology", {}), FAMILY_RULEBOOK)
-    req["parts"] = copy.deepcopy(case.get("parts") or {})
+    req["parts"] = copy.deepcopy(test.get("parts") or case.get("parts") or {})
     req["settings"] = copy.deepcopy(case.get("settings") or {})
     return req
 

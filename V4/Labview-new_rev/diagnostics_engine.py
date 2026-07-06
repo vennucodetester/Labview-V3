@@ -1194,9 +1194,16 @@ class CP3_NotCompressing(DiagnosticScenario):
     )
     THRESHOLD_LABELS = {
         'cp3_pr_critical': 'Pressure ratio CRITICAL threshold (minimum normal ratio)',
+        'cp3_min_lift_psig': 'Minimum pressure lift required before CP-3 can fire',
+        'cp3_min_rpm': 'Minimum compressor RPM proving compressor is running',
         'trend_window_rows': 'Analysis window (rows)',
     }
-    DEFAULT_THRESHOLDS = {'cp3_pr_critical': 1.5, 'trend_window_rows': 20}
+    DEFAULT_THRESHOLDS = {
+        'cp3_pr_critical': 1.5,
+        'cp3_min_lift_psig': 10.0,
+        'cp3_min_rpm': 300.0,
+        'trend_window_rows': 20,
+    }
     DEFAULT_EXPRESSIONS = {
         'CRITICAL': {'join': 'and', 'conditions': [
             {'column': 'P_disch', 'column2': 'P_suction', 'function': 'pressure_ratio', 'operator': '<', 'value': 1.5},
@@ -1212,12 +1219,21 @@ class CP3_NotCompressing(DiagnosticScenario):
             if pd_ is None or ps is None:
                 continue
             pr = (pd_ + 14.696) / max(ps + 14.696, 0.1)
+            lift = pd_ - ps
+            rpm_col = f'rpm-{_AB(label).lower()}' if ctx.system_type == 'cassette' else 'rpm'
+            rpm = _mean(df, rpm_col, win)
+            running = (
+                (rpm is not None and rpm >= self.t(thresholds, 'cp3_min_rpm'))
+                or lift >= self.t(thresholds, 'cp3_min_lift_psig')
+            )
             suffix = f'Unit {_AB(label)}' if ctx.system_type == 'cassette' else ''
             lbl = f'{self.LABEL}{" — " + suffix if suffix else ""}'
             evidence = (f'  P_disch: {pd_:.1f} PSIG | P_suction: {ps:.1f} PSIG\n'
                         f'  Pressure ratio (abs): {pr:.2f}')
+            evidence += f'\n  Pressure lift: {lift:.1f} PSIG'
+            evidence += f'\n  Compressor RPM evidence: {rpm:.0f}' if rpm is not None else '\n  Compressor RPM evidence: not mapped'
 
-            if pr < self.t(thresholds, 'cp3_pr_critical'):
+            if pr < self.t(thresholds, 'cp3_pr_critical') and running:
                 findings.append(Finding(
                     scenario_id=self.SCENARIO_ID, label=lbl, component=self.COMPONENT,
                     severity='CRITICAL',
@@ -3634,6 +3650,41 @@ class SI1_NegativeSubcooling(DiagnosticScenario):
             suffix = f'Unit {_AB(label)}' if ctx.system_type == 'cassette' else ''
             lbl = f'{self.LABEL}{" — " + suffix if suffix else ""}'
             evidence = f'  S.C (avg last {win} rows): {sc:.1f} °F'
+
+            ab = _ab(label)
+            unit_suffix = f"-{ab}" if ctx.system_type == "cassette" else ""
+            water_in = _mean(df, f'T_waterin{unit_suffix}', win)
+            water_out = _mean(df, f'T_waterout{unit_suffix}', win)
+            txv_sc = _mean(df, f'S.C-txv.{ab}', win)
+            coil_sh = _mean(df, f'S.H_{ab} coil', win)
+            water_dt = (water_out - water_in) if water_in is not None and water_out is not None else None
+            teaching_lines = [
+                '',
+                'Teaching fork:',
+                '  1. Condenser performance: low water delta-T or poor approach supports incomplete condensation.',
+                '  2. Undercharge: low condenser SC plus high coil/total SH supports low refrigerant inventory.',
+                '  3. Measurement artifact: bad T_4a/P_disch mapping or calibration can create impossible negative SC.',
+            ]
+            corroborating = []
+            if water_dt is not None:
+                corroborating.append(f'  Water delta-T: {water_dt:.1f} F')
+            if coil_sh is not None:
+                corroborating.append(f'  Coil SH ({ab}): {coil_sh:.1f} F')
+            if txv_sc is not None:
+                corroborating.append(f'  TXV inlet SC ({ab}): {txv_sc:.1f} F')
+            if corroborating:
+                teaching_lines.append('Case corroborating values:')
+                teaching_lines.extend(corroborating)
+            favors = 'measurement artifact / sensor check first'
+            if txv_sc is not None and txv_sc < 0:
+                favors = 'real flash gas in the liquid line'
+            if coil_sh is not None and coil_sh > 15 and sc < 0:
+                favors = 'undercharge or upstream starvation'
+            if water_dt is not None and water_dt < 2 and sc < 0:
+                favors = 'condenser water-side performance / low heat rejection'
+            teaching_lines.append(f'Current evidence favors: {favors}.')
+            teaching_fork = '\n'.join(teaching_lines)
+            evidence = f'{evidence}\n{teaching_fork}'
 
             if sc < self.t(thresholds, 'si1_sc_severe_f'):
                 sev = 'CRITICAL'

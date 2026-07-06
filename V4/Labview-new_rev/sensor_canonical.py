@@ -109,6 +109,23 @@ def _humanize_distance(name: str) -> str:
     return name
 
 
+def _humanize_shelf_row_id(row_id: str) -> str:
+    if row_id == 'top':
+        return 'Top'
+    if row_id == 'btm':
+        return 'Bottom'
+    if row_id == 'mid':
+        return 'Middle'
+    import re
+    m = re.match(r'^r(\d+)$', row_id or '')
+    if m:
+        n = int(m.group(1))
+        ordinal = {2: '2nd', 3: '3rd', 4: '4th', 5: '5th',
+                   6: '6th', 7: '7th', 8: '8th', 9: '9th'}
+        return ordinal.get(n, f'{n}th')
+    return row_id or ''
+
+
 # ── Per-component canonical mapping ─────────────────────────────────────────
 
 def canonical_for_compressor(props: Dict, port: str, unit_tag: str = '') -> Optional[Tuple[str, str]]:
@@ -148,11 +165,19 @@ def canonical_for_txv(props: Dict, port: str, unit_tag: str = '') -> Optional[Tu
     pref = f'{human_pref} ' if human_pref else ''
     if not tag:
         return None
+    exp_type = str(props.get('expansion_device_type') or 'TXV').lower()
+    if 'cap' in exp_type:
+        device = 'Cap Tube'
+    elif exp_type == 'eev':
+        device = 'EEV'
+    else:
+        device = 'TXV'
     table = {
-        'inlet':  (f'T_txv.{tag}.in',   f'{pref}TXV Inlet Temp'),
-        'outlet': (f'T_txv.{tag}.out',  f'{pref}TXV Outlet Temp'),
-        'bulb':   (f'T_txv.{tag}.bulb', f'{pref}TXV Bulb Temp'),
+        'inlet':  (f'T_txv.{tag}.in',  f'{pref}{device} Inlet Temp'),
+        'outlet': (f'T_txv.{tag}.out', f'{pref}{device} Outlet Temp'),
     }
+    if device == 'TXV' and props.get('show_bulb_port', True) is not False:
+        table['bulb'] = (f'T_txv.{tag}.bulb', f'{pref}TXV Bulb Temp')
     return table.get(port)
 
 
@@ -298,6 +323,8 @@ _DISPATCH = {
     'Compressor':      canonical_for_compressor,
     'Condenser':       canonical_for_condenser,
     'TXV':             canonical_for_txv,
+    'CapTube':         canonical_for_txv,
+    'EEV':             canonical_for_txv,
     'SensorBulb':      canonical_for_sensorbulb,
     'Distributor':     canonical_for_distributor,
     'SplitterManifold': canonical_for_distributor,
@@ -422,6 +449,9 @@ _BOX_LABEL_PATTERNS = [
     ('totalcasewatts',      'W_case.total',  'Total Case Watts'),
     ('totalcaseamps',       'A_case.total',  'Total Case Amps'),
     ('totalcasevolts',      'V_case.total',  'Total Case Volts'),
+    ('btu',                 'qc',            'BTU'),
+    ('totalflow',           'm_dot',         'Total Flow'),
+    ('avgproducttemp',      'T_prod.avg',    'AVG Product Temp'),
     ('totalcompwatts',      'W_comp.total',  'Total Compressor Watts'),
     ('compressorwatts',     'W_comp',        'Compressor Watts'),
     ('compressoramps',      'A_comp',        'Compressor Amps'),
@@ -454,11 +484,11 @@ _BOX_LABEL_PATTERNS = [
 
 def _looks_like_canonical(s: str) -> bool:
     """A canonical ID starts with one of the known prefixes (T_, P_, W_, A_,
-    V_, t_, f_, m_, gpm, rpm) and contains only safe characters."""
+    V_, t_, f_, m_, gpm, rpm, eev_pos) and contains only safe characters."""
     if not s:
         return False
     import re
-    return bool(re.match(r'^(T_|P_|W_|A_|V_|t_|f_|m_|gpm|rpm)[A-Za-z0-9._]*$', s))
+    return bool(re.match(r'^(T_|P_|W_|A_|V_|v_|t_|f_|m_|gpm|rpm|eev_pos)[A-Za-z0-9._]*$', s))
 
 
 def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
@@ -467,6 +497,65 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
         return None
     norm = normalize_for_match(label)
     import re
+    side_tag = {
+        'left': 'lh', 'l': 'lh', 'lh': 'lh',
+        'ctr': 'ctr', 'center': 'ctr',
+        'right': 'rh', 'r': 'rh', 'rh': 'rh',
+    }
+    side_human = {'lh': 'Left', 'ctr': 'Center', 'rh': 'Right'}
+
+    air_sample_idx = {
+        ('2', 'le'): 1, ('12', 'le'): 2, ('24', 'le'): 3,
+        ('42', 'le'): 4, ('54', 'le'): 5,
+        ('54', 're'): 7, ('42', 're'): 8, ('24', 're'): 9,
+        ('12', 're'): 10, ('2', 're'): 11,
+    }
+    m = re.match(r'^(?:primary)?(discharge|secondary(?:discharge)?|return)air(\d+)(?:in)?(le|re)$', norm)
+    if m:
+        kind, inches, side = m.groups()
+        if kind == 'secondarydischarge':
+            kind = 'secondary'
+        prefix = {'discharge': 'disc', 'secondary': 'sec', 'return': 'ret'}[kind]
+        human_kind = {'discharge': 'Discharge', 'secondary': 'Secondary', 'return': 'Return'}[kind]
+        idx = air_sample_idx.get((inches, side))
+        if idx:
+            return (f'T_air.{prefix}.s{idx}', f'{human_kind} Air - {inches}in {side.upper()}')
+        return (f'T_air.{prefix}.{side.upper()}{inches}',
+                f'{human_kind} Air - {inches}in {side.upper()}')
+    center_air_aliases = {
+        'dischargeaircenter': 'disc', 'dischargeairctr': 'disc',
+        'primarydischargeaircenter': 'disc', 'primarydischargeairctr': 'disc',
+        'secondaryaircenter': 'sec', 'secondaryairctr': 'sec',
+        'secondarydischargeaircenter': 'sec', 'secondarydischargeairctr': 'sec',
+        'returnaircenter': 'ret', 'returnairctr': 'ret',
+    }
+    if norm in center_air_aliases:
+        prefix = center_air_aliases[norm]
+        human_kind = {'disc': 'Discharge', 'sec': 'Secondary', 'ret': 'Return'}[prefix]
+        return (f'T_air.{prefix}.s6', f'{human_kind} Air - Center')
+
+    m = re.match(r'^air(in|off)evap\d*(?:in)?(le|re)$', norm)
+    if m:
+        flow, side = m.groups()
+        prefix = 'fan_in' if flow == 'in' else 'fan_off'
+        human_flow = 'In' if flow == 'in' else 'Off'
+        return (f'T_air.{prefix}.lh.{side.upper()}', f'Fan LH Air {human_flow} - {side.upper()}')
+
+    m = re.match(r'^air(in|off)(left|lh|ctr|center|right|rh)evap\d*(?:in)?(le|re)$', norm)
+    if m:
+        flow, circuit, side = m.groups()
+        tag = side_tag[circuit]
+        prefix = 'fan_in' if flow == 'in' else 'fan_off'
+        human_flow = 'In' if flow == 'in' else 'Off'
+        return (f'T_air.{prefix}.{tag}.{side.upper()}', f'Fan {tag.upper()} Air {human_flow} - {side.upper()}')
+
+    m = re.match(r'^air(in|off)(left|l|lh|ctr|center|right|r|rh)coil\d*(?:in)?(le|re)$', norm)
+    if m:
+        flow, circuit, side = m.groups()
+        tag = side_tag[circuit]
+        prefix = 'fan_in' if flow == 'in' else 'fan_off'
+        human_flow = 'In' if flow == 'in' else 'Off'
+        return (f'T_air.{prefix}.{tag}.{side.upper()}', f'Fan {tag.upper()} Air {human_flow} - {side.upper()}')
 
     if norm.startswith('ps'):
         row = None
@@ -488,7 +577,7 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
         m = re.search(r'(\d+)(?:in)?(le|re)', base_norm)
         if m:
             col = f"{m.group(2).upper()}{m.group(1)}"
-        elif 'center' in norm or 'centre' in norm:
+        elif 'center' in norm or 'centre' in norm or 'ctr' in norm:
             col = 'Ctr'
         elif base_norm.endswith('le'):
             col = 'LE'
@@ -496,7 +585,7 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
             col = 'RE'
         if row and col and pos:
             return (f'T_prod.{row}.{col}.{pos}',
-                    f'Product Sim - {row} - {col} - {"Rear" if pos == "r" else "Front"}')
+                    f'Product Sim - {_humanize_shelf_row_id(row)} Shelf - {_humanize_distance(col)} - {"Rear" if pos == "r" else "Front"}')
 
     sh_aliases = {
         'leftsh': ('calc.SH.lh', 'Left Coil Superheat'),
@@ -505,6 +594,7 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
         'centersh': ('calc.SH.ctr', 'Center Coil Superheat'),
         'rightsh': ('calc.SH.rh', 'Right Coil Superheat'),
         'rhsh': ('calc.SH.rh', 'Right Coil Superheat'),
+        'sh': ('calc.SH.lh', 'Left Coil Superheat'),
     }
     compact = norm.replace('superheat', 'sh')
     compact = compact.replace('suctionheat', 'sh')
@@ -512,6 +602,52 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
         return sh_aliases[compact]
     if norm in {'liqcond', 'liquidcond', 'liquidcondenser', 'subcooling', 'subcool'}:
         return ('calc.SC_cond', 'Condenser Outlet Subcooling')
+    m = re.match(r'^subcooling(left|l|lh|right|r|rh)$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'calc.SC_txv.{tag}', f'{side_human[tag]} TXV Subcooling')
+    if norm == 'txvbulb':
+        return ('T_txv.lh.bulb', 'Left TXV Bulb Temp')
+    if norm in {'intodistributor', 'intodistrubutor'}:
+        return ('T_dist.lh.in', 'Left Distributor Inlet Temp')
+    m = re.match(r'^(?:into)?distributor(\d+)$', norm)
+    if m:
+        tag = _unit_tag_from_number(m.group(1))
+        return (f'T_dist.{tag}.in', f'{tag.upper()} Distributor Inlet Temp')
+    if norm in {'intotxvsplit', 'intotxvsplt'}:
+        return ('T_txv_split.in', 'Into TXV Split Temp')
+    m = re.match(r'^outoftxvsplit(left|l|lh|right|r|rh)$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'T_txv_split.out.{tag}', f'Out of TXV Split {side_human[tag]} Temp')
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)txvinlet$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'T_txv.{tag}.in', f'{side_human[tag]} TXV Inlet Temp')
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)txvbulb(?:temp)?$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'T_txv.{tag}.bulb', f'{side_human[tag]} TXV Bulb Temp')
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)defrost(?:term|termination)sensor$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'T_defrost.term.{tag}', f'{side_human[tag]} Defrost Termination Sensor')
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)dasensor$', norm)
+    if m:
+        tag = side_tag[m.group(1)]
+        return (f'T_air.fan_off.{tag}.avg', f'Discharge Air Sensor ({tag.upper()})')
+    if norm in {'waterinhe', 'waterinheatx'}:
+        return ('T_w.in', 'Condenser Water Inlet Temp')
+    if norm in {'waterouthe', 'wateroutheatx'}:
+        return ('T_w.out', 'Condenser Water Outlet Temp')
+    if norm in {'intocondenser', 'intocondeser'}:
+        return ('T_cond.in', 'Condenser Refrigerant Inlet Temp')
+    if norm == 'outofcondenser':
+        return ('T_cond.out', 'Condenser Refrigerant Outlet Temp')
+    if norm in {'airvelocitiesfpm', 'airvelocityfpm'}:
+        return ('v_air.fpm', 'Air Velocities FPM')
+    if norm in {'coiloutletevap', 'evapcoiloutlet', 'commoncoiloutlet'}:
+        return ('T_coil.common.out', 'Common Coil Outlet Temp')
 
     m = re.match(r'^(?:u|unit)(\d+)txvbulb', norm) or re.match(r'^txvbulbtemp(?:u|unit)(\d+)$', norm)
     if m:
@@ -520,10 +656,38 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
     m = (
         re.match(r'^(?:u|unit)(\d+)txvinlet', norm)
         or re.match(r'^(?:tempinto|intotemp|temperatureinto)?txv(?:u|unit)(\d+)$', norm)
+        or re.match(r'^txv(\d+)inlet$', norm)
     )
     if m:
         tag = _unit_tag_from_number(m.group(1))
         return (f'T_txv.{tag}.in', f'{tag.upper()} TXV Inlet Temp')
+
+    m = re.match(r'^(?:u|unit)(\d+)eevsuction', norm) or re.match(r'^eevsuctiontemp(?:u|unit)(\d+)$', norm)
+    if m:
+        tag = _unit_tag_from_number(m.group(1))
+        return (f'T_eev.{tag}.suction', f'{tag.upper()} EEV Suction Temp')
+    m = re.match(r'^(?:u|unit)(\d+)eev(?:position|pos|opening)', norm) or re.match(r'^eev(?:position|pos|opening)(?:u|unit)(\d+)$', norm)
+    if m:
+        tag = _unit_tag_from_number(m.group(1))
+        return (f'eev_pos.{tag}', f'{tag.upper()} EEV Position %')
+    if norm == 'btu':
+        return ('qc', 'BTU')
+    if norm == 'totalflow':
+        return ('m_dot', 'Total Flow')
+    if norm == 'avgairin':
+        return ('T_air.avg.in', 'AVG Air In')
+    if norm == 'avgairoff':
+        return ('T_air.avg.off', 'AVG Air Off')
+    if norm in {'avgproducttemp', 'avgprodtemp', 'avgprodsimtemp',
+                'averageproducttemp', 'averageprodtemp'}:
+        return ('T_prod.avg', 'AVG Product Temp')
+
+    m = re.match(r'^(?:inletoffilterdrier|filterdrierinlet)$', norm)
+    if m:
+        return ('T_filter_drier.in', 'Filter Drier Inlet Temp')
+    m = re.match(r'^(?:caseinletafterfilterdrier|afterfilterdrier|filterdrieroutlet)$', norm)
+    if m:
+        return ('T_filter_drier.out', 'Filter Drier Outlet Temp')
 
     m = re.match(r'^suctiontempintocomp(?:u|unit)(\d+)$', norm)
     if m:
@@ -560,6 +724,22 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
         circuit, unit = m.groups()
         tag = _unit_tag_from_number(unit)
         return (f'T_coil.{tag}.out.{circuit}', f'{tag.upper()} Coil Outlet {circuit} Temp')
+
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)coil(?:in|inlet)(\d+)?$', norm)
+    if m:
+        circuit_label, circuit = m.groups()
+        tag = side_tag[circuit_label]
+        if circuit:
+            return (f'T_coil.{tag}.in.{circuit}', f'{tag.upper()} Coil Inlet {circuit} Temp')
+        return (f'T_coil.{tag}.in', f'{tag.upper()} Coil Inlet Temp')
+
+    m = re.match(r'^(left|l|lh|ctr|center|right|r|rh)coil(?:out|outlet)(\d+)?$', norm)
+    if m:
+        circuit_label, circuit = m.groups()
+        tag = side_tag[circuit_label]
+        if circuit:
+            return (f'T_coil.{tag}.out.{circuit}', f'{tag.upper()} Coil Outlet {circuit} Temp')
+        return (f'T_coil.{tag}.out', f'{tag.upper()} Coil Outlet Temp')
 
     m = re.match(r'^airinto(?:evap|evaporator)(left|right)(?:u|unit)(\d+)$', norm)
     if m:
@@ -612,6 +792,30 @@ def _canonical_from_box_label(label: str) -> Optional[Tuple[str, str]]:
     if m:
         unit = m.group(1)
         return (f'W_comp.u{unit}', f'Compressor {unit} Watts')
+    if norm in {'compressorhertz', 'compressorhz'}:
+        return ('rpm', 'Compressor RPM')
+
+    m = re.match(r'^(l[123])(amps|volts|watts)$', norm)
+    if m:
+        phase, metric = m.groups()
+        prefix = {'volts': 'V', 'amps': 'A', 'watts': 'W'}[metric]
+        return (f'{prefix}_case.{phase.upper()}', f'{phase.upper()} {metric.title()}')
+    m = re.match(r'^total(l[123])watts$', norm)
+    if m:
+        phase = m.group(1).upper()
+        return (f'W_case.{phase}.total', f'Total {phase} Watts')
+    m = re.match(r'^120v(amps|volts|watts)$', norm)
+    if m:
+        metric = m.group(1)
+        prefix = {'volts': 'V', 'amps': 'A', 'watts': 'W'}[metric]
+        return (f'{prefix}_aux.120v', f'120V {metric.title()}')
+    m = re.match(r'^total(amps|volts)$', norm)
+    if m:
+        metric = m.group(1)
+        prefix = {'volts': 'V', 'amps': 'A'}[metric]
+        return (f'{prefix}_case.total', f'Total {metric.title()}')
+    if norm == 'totalwatts':
+        return ('W_total', 'Total Watts')
     for pat, cid, human in _BOX_LABEL_PATTERNS:
         if pat in norm:
             return (cid, human)
@@ -660,7 +864,30 @@ def electrical_system_slots(n_compressors: int = 1) -> list:
         ('f_defrost',    'Defrost Flag'),
         ('f_alwaysoff',  'Always Off Flag'),
         ('m_dot_meas',   'Flowmeter (Mass Flow)'),
+        ('qc',           'BTU'),
+        ('m_dot',        'Total Flow'),
+        ('T_prod.avg',   'AVG Product Temp'),
+        ('T_air.avg.in', 'AVG Air In'),
+        ('T_air.avg.off','AVG Air Off'),
         ('T_liq.main',   'Main Liquid Line Temp (into main distributor)'),
+        ('T_filter_drier.in',  'Filter Drier Inlet Temp'),
+        ('T_filter_drier.out', 'Filter Drier Outlet Temp'),
+        ('V_aux.120v',   '120V Volts'),
+        ('A_aux.120v',   '120V Amps'),
+        ('W_aux.120v',   '120V Watts'),
+        ('V_case.L1',    'L1 Volts'),
+        ('A_case.L1',    'L1 Amps'),
+        ('W_case.L1',    'L1 Watts'),
+        ('V_case.L2',    'L2 Volts'),
+        ('A_case.L2',    'L2 Amps'),
+        ('W_case.L2',    'L2 Watts'),
+        ('V_case.L3',    'L3 Volts'),
+        ('A_case.L3',    'L3 Amps'),
+        ('W_case.L3',    'L3 Watts'),
+        ('W_case.L1.total', 'Total L1 Watts'),
+        ('W_case.L2.total', 'Total L2 Watts'),
+        ('W_case.L3.total', 'Total L3 Watts'),
+        ('W_total',      'Total Watts'),
     ]
     if n_compressors <= 1:
         base += [
@@ -694,10 +921,12 @@ def normalize_for_match(s: str) -> str:
     # the same sensor label for alias matching; true sensor indices usually
     # appear before words like door/unit/circuit rather than as a final suffix.
     s = re.sub(r'\.\d+$', '', s)
+    s = re.sub(r'\bsec\b', 'secondary', s)
     s = re.sub(r'\bdisch\b', 'discharge', s)
     s = re.sub(r'\bait\b', 'air', s)
     s = re.sub(r'\bpresure\b', 'pressure', s)
     s = re.sub(r'\bcondesner\b', 'condenser', s)
+    s = re.sub(r'\bcondeser\b', 'condenser', s)
     s = re.sub(r'\bintlet\b', 'inlet', s)
     s = re.sub(r'\bback\s+wall\b', 'rear wall', s)
     s = re.sub(r'[\s_\-.()/,]+', '', s)

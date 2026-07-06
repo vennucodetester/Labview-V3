@@ -41,6 +41,14 @@ from diagnostics_engine import (
     _sanitize_colname, CustomScenario,
     SEVERITY_ORDER, COLUMN_DESCRIPTIONS,
 )
+from diagnosis_scorecard import evaluate_targets
+from diagnosis_visibility import (
+    finding_confidence,
+    finding_sort_key,
+    is_candidate_finding,
+    is_diagram_visible_finding,
+    presentation_severity,
+)
 
 # ─── NO-WHEEL COMBO FOR RULE EDITOR ───────────────────────────────────────────
 
@@ -55,6 +63,7 @@ SEVER_COLORS = {
     'CRITICAL': ('#c0392b', '#fdecea'),  # (border/badge, background)
     'WARNING':  ('#e67e22', '#fef6ec'),
     'WATCH':    ('#2980b9', '#eaf4fb'),
+    'OBSERVATION': ('#607d8b', '#f6f8fa'),
     'OK':       ('#27ae60', '#eafaf1'),
     'INFO':     ('#7f8c8d', '#f5f5f5'),
 }
@@ -75,6 +84,8 @@ class FindingCard(QFrame):
 
     locate_requested = pyqtSignal(object)   # emits the Finding → highlight on diagram
 
+    cycle_requested = pyqtSignal(object)
+
     def __init__(self, finding: Finding, parent=None):
         super().__init__(parent)
         self.finding = finding
@@ -84,8 +95,9 @@ class FindingCard(QFrame):
         self._build_ui()
 
     def _build_ui(self):
-        border_col, bg_col = SEVER_COLORS.get(self.finding.severity, ('#888', '#fafafa'))
-        icon = SEVER_ICONS.get(self.finding.severity, '')
+        visual_severity = presentation_severity(self.finding)
+        border_col, bg_col = SEVER_COLORS.get(visual_severity, ('#888', '#fafafa'))
+        icon = SEVER_ICONS.get(visual_severity, '')
 
         self.setFrameShape(QFrame.Shape.StyledPanel)
         self.setStyleSheet(f"""
@@ -104,7 +116,10 @@ class FindingCard(QFrame):
         # ── Header row ───────────────────────────────────────────────────────
         header_row = QHBoxLayout()
 
-        badge = QLabel(f'{icon} {self.finding.severity}')
+        badge_text = visual_severity
+        if icon:
+            badge_text = f'{icon} {badge_text}'
+        badge = QLabel(badge_text)
         badge.setStyleSheet(
             f'color: {border_col}; font-weight: bold; font-size: 11px;'
         )
@@ -121,9 +136,25 @@ class FindingCard(QFrame):
         )
         trend_tag.setVisible(self.finding.uses_trend)
 
+        candidate_tag = QLabel('UNVALIDATED')
+        candidate_tag.setStyleSheet(
+            'color: #607d8b; font-size: 10px; border: 1px solid #90a4ae; '
+            'border-radius: 3px; padding: 1px 4px; background: #ffffff;'
+        )
+        candidate_tag.setVisible(is_candidate_finding(self.finding))
+
+        original_tag = QLabel(self.finding.severity)
+        original_tag.setStyleSheet(
+            'color: #777; font-size: 10px; border: 1px solid #bbb; '
+            'border-radius: 3px; padding: 1px 4px;'
+        )
+        original_tag.setVisible(is_candidate_finding(self.finding))
+
         header_row.addWidget(badge)
         header_row.addWidget(id_label, 1)
         header_row.addWidget(trend_tag)
+        header_row.addWidget(candidate_tag)
+        header_row.addWidget(original_tag)
         root.addLayout(header_row)
 
         # ── Summary ──────────────────────────────────────────────────────────
@@ -133,7 +164,7 @@ class FindingCard(QFrame):
         root.addWidget(summary)
 
         # ── Expand buttons (only if content exists) ──────────────────────────
-        _locatable = self.finding.severity not in ('OK', 'INFO')
+        _locatable = is_diagram_visible_finding(self.finding)
         if self.finding.evidence or self.finding.recommendation or _locatable:
             btn_row = QHBoxLayout()
             btn_row.setContentsMargins(108, 0, 0, 0)
@@ -149,6 +180,17 @@ class FindingCard(QFrame):
                 self._locate_btn.clicked.connect(
                     lambda: self.locate_requested.emit(self.finding))
                 btn_row.addWidget(self._locate_btn)
+
+                self._cycle_btn = QPushButton('Show on cycle')
+                self._cycle_btn.setFlat(True)
+                self._cycle_btn.setStyleSheet(
+                    'color: #8e24aa; font-size: 11px; text-align: left; padding: 0;'
+                )
+                self._cycle_btn.setToolTip(
+                    'Switch to Diagram Analysis and highlight the matching P-h state point')
+                self._cycle_btn.clicked.connect(
+                    lambda: self.cycle_requested.emit(self.finding))
+                btn_row.addWidget(self._cycle_btn)
 
             if self.finding.evidence:
                 self._ev_btn = QPushButton('▶ Evidence')
@@ -1882,11 +1924,14 @@ class DiagnosticsWidget(QWidget):
     """
 
     locate_on_diagram = pyqtSignal(object)   # re-emitted from FindingCard
+    show_on_cycle = pyqtSignal(object)       # re-emitted from FindingCard
+    findings_updated = pyqtSignal(list)      # feeds persistent diagram verdict badges
 
     def __init__(self, data_manager, parent=None):
         super().__init__(parent)
         self.data_manager    = data_manager
         self._findings: list[Finding] = []
+        self._scorecard_rows = []
         self._user_thresholds: dict   = {}
         self._current_filter          = 'All'
         self._custom_scenarios_cfg: list = []   # raw JSON config dicts
@@ -1917,7 +1962,7 @@ class DiagnosticsWidget(QWidget):
         top_bar.addStretch()
 
         self._filter_combo = QComboBox()
-        self._filter_combo.addItems(['All', 'CRITICAL', 'WARNING', 'WATCH', 'OK', 'INFO'])
+        self._filter_combo.addItems(['All', 'CRITICAL', 'WARNING', 'WATCH', 'OBSERVATION', 'OK', 'INFO'])
         self._filter_combo.currentTextChanged.connect(self._apply_filter)
         self._filter_combo.setFixedWidth(110)
         top_bar.addWidget(QLabel('Filter:'))
@@ -1953,6 +1998,23 @@ class DiagnosticsWidget(QWidget):
         self._summary_bar.setWordWrap(True)
         root.addWidget(self._summary_bar)
 
+        self._scorecard_table = QTableWidget(0, 5)
+        self._scorecard_table.setHorizontalHeaderLabels(
+            ['Target', 'Verdict', 'Measured', 'Band', 'Source']
+        )
+        self._scorecard_table.verticalHeader().setVisible(False)
+        self._scorecard_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._scorecard_table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self._scorecard_table.setMaximumHeight(132)
+        self._scorecard_table.setVisible(False)
+        hdr = self._scorecard_table.horizontalHeader()
+        hdr.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        hdr.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        hdr.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        root.addWidget(self._scorecard_table)
+
         # ── Diagnostics status label (shows while running / on completion) ───
         self._diag_status = QLabel('')
         self._diag_status.setStyleSheet('font-size: 10pt; color: #2980b9; padding: 1px 4px; font-style: italic;')
@@ -1986,7 +2048,7 @@ class DiagnosticsWidget(QWidget):
 
         filt = self._current_filter
         visible = [f for f in self._findings
-                   if filt == 'All' or f.severity == filt]
+                   if filt == 'All' or f.severity == filt or presentation_severity(f) == filt]
 
         if not visible:
             placeholder = QLabel(
@@ -2000,14 +2062,17 @@ class DiagnosticsWidget(QWidget):
             for i, finding in enumerate(visible):
                 card = FindingCard(finding)
                 card.locate_requested.connect(self.locate_on_diagram.emit)
+                card.cycle_requested.connect(self.show_on_cycle.emit)
                 self._cards_layout.insertWidget(i, card)
 
         self._update_summary()
 
     def _update_summary(self):
         counts = {s: 0 for s in SEVERITY_ORDER}
+        counts['OBSERVATION'] = 0
         for f in self._findings:
-            counts[f.severity] = counts.get(f.severity, 0) + 1
+            sev = presentation_severity(f)
+            counts[sev] = counts.get(sev, 0) + 1
 
         parts = []
         if counts.get('CRITICAL', 0):
@@ -2016,6 +2081,8 @@ class DiagnosticsWidget(QWidget):
             parts.append(f'<span style="color:#e67e22;font-weight:bold;">● {counts["WARNING"]} WARNING</span>')
         if counts.get('WATCH', 0):
             parts.append(f'<span style="color:#2980b9;">● {counts["WATCH"]} WATCH</span>')
+        if counts.get('OBSERVATION', 0):
+            parts.append(f'<span style="color:#607d8b;">{counts["OBSERVATION"]} UNVALIDATED OBSERVATIONS</span>')
         if counts.get('OK', 0):
             parts.append(f'<span style="color:#27ae60;">✓ {counts["OK"]} OK</span>')
         if counts.get('INFO', 0):
@@ -2026,6 +2093,99 @@ class DiagnosticsWidget(QWidget):
         else:
             self._summary_bar.setText('No findings.')
         self._summary_bar.setTextFormat(Qt.TextFormat.RichText)
+
+    def _targets_for_current_case(self) -> list[dict]:
+        try:
+            from case_library import CaseLibrary
+            from test_request_library import DEFAULT_TARGETS
+            case_id = getattr(self.data_manager, 'case_id', None)
+            case = CaseLibrary().get_case(case_id) if case_id else None
+            return [dict(t) for t in ((case or {}).get('default_targets') or DEFAULT_TARGETS)]
+        except Exception:
+            return []
+
+    def _update_scorecard(self, df):
+        rows = evaluate_targets(df, self._targets_for_current_case())
+        self._scorecard_rows = rows
+        self._scorecard_table.setRowCount(len(rows))
+        self._scorecard_table.setVisible(bool(rows))
+
+        colors = {
+            'PASS': QColor('#eafaf1'),
+            'FAIL': QColor('#fdecea'),
+            'NO DATA': QColor('#f5f5f5'),
+            'NO LIMIT': QColor('#f6f8fa'),
+        }
+        for r, row in enumerate(rows):
+            values = [
+                row.target,
+                row.status,
+                row.value_text,
+                row.target_band,
+                ', '.join(row.sources) if row.sources else 'No linked source',
+            ]
+            for c, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setToolTip(row.message)
+                item.setBackground(colors.get(row.status, QColor('#ffffff')))
+                if c == 1:
+                    item.setFont(QFont(item.font().family(), item.font().pointSize(), QFont.Weight.Bold))
+                self._scorecard_table.setItem(r, c, item)
+        self._scorecard_table.resizeRowsToContents()
+        return rows
+
+    def _scorecard_findings_for_diagram(self, rows=None) -> list[Finding]:
+        findings = []
+        source_rows = rows if rows is not None else self._scorecard_rows
+        for row in source_rows:
+            if getattr(row, 'status', '') != 'FAIL':
+                continue
+            target = row.target
+            name = target.lower()
+            if 'superheat' in name:
+                component = 'Evaporator'
+            elif 'subcool' in name:
+                component = 'Condenser'
+            elif 'product' in name:
+                component = 'Evaporator'
+            elif 'capacity' in name:
+                component = 'Compressor'
+            else:
+                component = 'Condenser'
+            source = ', '.join(row.sources) if row.sources else 'No linked source'
+            findings.append(Finding(
+                scenario_id=f'SCORECARD-{target.upper().replace(" ", "-")}',
+                label=f'Target failed - {target}',
+                component=component,
+                severity='WARNING',
+                summary=f'{target} target failed: {row.value_text} vs {row.target_band}.',
+                evidence=f'Source: {source}\n{row.message}',
+                recommendation='Review the linked sensor/calculation and adjust the test setup until the target band passes.',
+            ))
+        return findings
+
+    def _inputs_clean_for_diagram(self) -> bool:
+        try:
+            report = self.data_manager.get_mapping_integrity_report()
+        except Exception:
+            return True
+        if not report:
+            return True
+        if isinstance(report, dict):
+            return not any(report.get(key) for key in (
+                'mapped_not_visible',
+                'duplicate_diagram_labels',
+                'learned_alias_contradictions',
+            ))
+        return True
+
+    def _diagram_findings(self) -> list[Finding]:
+        visible = []
+        if self._inputs_clean_for_diagram():
+            visible.extend(f for f in self._findings if is_diagram_visible_finding(f))
+        visible.extend(self._scorecard_findings_for_diagram())
+        visible.sort(key=finding_sort_key)
+        return visible
 
     # ── Filter ────────────────────────────────────────────────────────────────
 
@@ -2173,6 +2333,8 @@ class DiagnosticsWidget(QWidget):
             rules_config=self._rules_config,
             diagram_model=model,
         )
+        self._update_scorecard(df)
+        self.findings_updated.emit(self._diagram_findings())
         n_rows = len(df) if df is not None else 0
         n_mods = len(module_labels)
         unit_word = 'unit' if system_type == 'cassette' else 'module'

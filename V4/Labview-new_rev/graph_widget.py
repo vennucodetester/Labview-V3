@@ -20,7 +20,13 @@ class GraphDateAxis(pg.DateAxisItem):
         self.setToolTip("Wheel over the time axis: zoom X only\nDouble-click: fit X")
 
     def wheelEvent(self, event):
-        self.owner.zoom_axis_at('x', event)
+        # With the grid enabled this axis item's hit-area spans the whole
+        # plot, so plot-area wheels land here. Constrain to X only when the
+        # cursor is truly in the bottom strip; inside the plot, zoom both.
+        if self.owner.point_in_plot(event.scenePos()):
+            self.owner.zoom_plot_at(event)
+        else:
+            self.owner.zoom_axis_at('x', event)
         event.accept()
 
     def mouseDoubleClickEvent(self, event):
@@ -46,7 +52,12 @@ class GraphValueAxis(pg.AxisItem):
         self.setToolTip("Wheel over the value axis: zoom Y only\nDouble-click: fit Y")
 
     def wheelEvent(self, event):
-        self.owner.zoom_axis_at('y', event)
+        # Same grid hit-area issue as the bottom axis: only constrain to Y
+        # in the left strip; inside the plot, zoom both axes together.
+        if self.owner.point_in_plot(event.scenePos()):
+            self.owner.zoom_plot_at(event)
+        else:
+            self.owner.zoom_axis_at('y', event)
         event.accept()
 
     def mouseDoubleClickEvent(self, event):
@@ -360,20 +371,20 @@ class GraphWidget(QWidget):
         except Exception:
             return None
 
+    def point_in_plot(self, scene_pos) -> bool:
+        """True when a scene position lies inside the plot (viewbox) area."""
+        try:
+            return self.plot_widget.getViewBox().sceneBoundingRect().contains(scene_pos)
+        except Exception:
+            return False
+
     def zoom_axis_at(self, axis: str, event):
         """Zoom one graph axis around the cursor position."""
         self.zoom_axes_at((axis,), event)
 
     def zoom_plot_at(self, event):
-        """Zoom both axes in the plot area unless an axis is explicitly locked."""
-        axes = []
-        if not self.lock_x_btn.isChecked():
-            axes.append('x')
-        if not self.lock_y_btn.isChecked():
-            axes.append('y')
-        if not axes:
-            return
-        self.zoom_axes_at(tuple(axes), event)
+        """Zoom both axes in the plot area; axis strips constrain zoom."""
+        self.zoom_axes_at(('x', 'y'), event)
 
     def zoom_axes_at(self, axes, event):
         """Zoom selected graph axes around the cursor position."""
@@ -421,9 +432,7 @@ class GraphWidget(QWidget):
         self.plot_widget.getViewBox().setMouseMode(mode)
 
     def _update_axis_locks(self):
-        vb = self.plot_widget.getViewBox()
-        vb.setMouseEnabled(x=not self.lock_x_btn.isChecked(),
-                           y=not self.lock_y_btn.isChecked())
+        self.plot_widget.getViewBox().setMouseEnabled(x=True, y=True)
 
     def fit_y_to_view(self):
         """Rescale the Y axis to the data inside the current X (time) window,

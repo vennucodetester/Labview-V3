@@ -372,6 +372,39 @@ class SensorPanel(QWidget):
         canonical = dict(rows).get(selected)
         if not canonical:
             return
+        warnings = []
+        try:
+            from sensor_canonical import _canonical_from_box_label
+            pattern = _canonical_from_box_label(sensor_name)
+            if pattern and pattern[0] and pattern[0] != canonical:
+                warnings.append(
+                    f"Pattern resolver expects {pattern[0]}, but you chose {canonical}."
+                )
+        except Exception:
+            pass
+        try:
+            roles = self.data_manager.diagram_model.get('sensor_roles') or {}
+            for row in self.data_manager.get_expected_sensor_rows(include_disabled=True):
+                if row.get('canonical') == canonical:
+                    mapped = roles.get(row.get('role_key') or '')
+                    if mapped and mapped != sensor_name:
+                        warnings.append(
+                            f"{canonical} is already occupied by '{mapped}'."
+                        )
+                        break
+        except Exception:
+            pass
+        if warnings:
+            msg = "\n".join(warnings) + "\n\nSave this alias anyway?"
+            answer = QMessageBox.question(
+                self,
+                "Confirm alias override",
+                msg,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
         self.data_manager.learn_sensor_alias(canonical, sensor_name)
         try:
             self.data_manager.auto_map_csv_to_canonical(self.data_manager.get_sensor_list())
@@ -657,6 +690,26 @@ class SensorPanel(QWidget):
         unknown = report.get('unmapped_csv') or []
         lines.extend([f"  {name}" for name in unknown] or ["  (none)"])
         lines.append("")
+        lines.append("Conflicts")
+        no_role_conflicts = report.get('known_but_no_role') or []
+        conflicts = report.get('known_but_filled') or []
+        if no_role_conflicts:
+            for item in no_role_conflicts:
+                lines.append(
+                    f"  {item.get('csv')} -> {item.get('canonical')} "
+                    "(known alias, but this diagram has no matching slot)"
+                )
+        if conflicts:
+            for item in conflicts:
+                occupied = item.get('occupied') or []
+                occupied_text = "; ".join(
+                    f"{occ.get('role_key')} occupied by {occ.get('csv') or '(unknown)'}"
+                    for occ in occupied
+                ) or ", ".join(item.get('role_keys') or [])
+                lines.append(f"  {item.get('csv')} -> {item.get('canonical')} ({occupied_text})")
+        if not no_role_conflicts and not conflicts:
+            lines.append("  (none)")
+        lines.append("")
         lines.append("Diagram slots with no CSV column")
         missing = report.get('unmapped_expected') or []
         if missing:
@@ -668,18 +721,52 @@ class SensorPanel(QWidget):
         lines.append("Ignored CSV columns")
         ignored = report.get('ignored_csv') or []
         lines.extend([f"  {name}" for name in ignored] or ["  (none)"])
+        integrity = (
+            self.data_manager.get_mapping_integrity_report()
+            if getattr(self.data_manager, 'get_mapping_integrity_report', None)
+            else {}
+        )
+        lines.append("")
+        lines.append("Mapping integrity")
+        violation_count = integrity.get('violation_count', 0)
+        lines.append(f"  Source: {integrity.get('source', 'not run')}")
+        lines.append(f"  Violations: {violation_count}")
+        violations = integrity.get('violations') or {}
+        if violations:
+            for name, items in violations.items():
+                lines.append(f"  {name}: {len(items)}")
+                for item in items[:10]:
+                    lines.append(f"    {item}")
+                if len(items) > 10:
+                    lines.append(f"    ... {len(items) - 10} more")
+        else:
+            lines.append("  A-D: OK")
         text.setPlainText("\n".join(lines))
         layout.addWidget(text)
         row = QHBoxLayout()
         export = QPushButton("Export CSV")
+        relearn = QPushButton("Re-learn conflicts")
+        relearn.setEnabled(bool(report.get('known_but_filled')))
         close = QPushButton("Close")
         export.clicked.connect(lambda: self._export_mapping_report(report))
+        relearn.clicked.connect(lambda: self._relearn_mapping_conflicts(dlg))
         close.clicked.connect(dlg.accept)
         row.addWidget(export)
+        row.addWidget(relearn)
         row.addStretch()
         row.addWidget(close)
         layout.addLayout(row)
         dlg.exec()
+
+    def _relearn_mapping_conflicts(self, dialog=None):
+        if not hasattr(self.data_manager, 'relearn_known_but_filled_conflicts'):
+            return
+        removed = self.data_manager.relearn_known_but_filled_conflicts()
+        print(f"[ALIAS_DB] Re-learn conflicts removed {removed} learned alias entr{'y' if removed == 1 else 'ies'}")
+        self.update_ui()
+        if dialog is not None:
+            dialog.accept()
+            self.show_mapping_report()
 
     def _export_mapping_report(self, report):
         from PyQt6.QtWidgets import QFileDialog
@@ -699,6 +786,14 @@ class SensorPanel(QWidget):
             for item in report.get('unmapped_expected') or []:
                 for role_key in item.get('role_keys') or [""]:
                     writer.writerow(["no_csv_for_diagram_slot", "", item.get('canonical'), role_key])
+            for item in report.get('known_but_filled') or []:
+                occupied = "; ".join(
+                    f"{occ.get('role_key')} occupied by {occ.get('csv') or ''}"
+                    for occ in item.get('occupied') or []
+                )
+                writer.writerow(["conflict", item.get('csv'), item.get('canonical'), occupied])
+            for item in report.get('known_but_no_role') or []:
+                writer.writerow(["conflict_no_role", item.get('csv'), item.get('canonical'), ""])
             for csv_name in report.get('ignored_csv') or []:
                 writer.writerow(["ignored_csv", csv_name, "", ""])
 

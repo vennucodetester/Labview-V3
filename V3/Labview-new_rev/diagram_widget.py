@@ -510,6 +510,9 @@ class DiagramWidget(QWidget):
         
         # Custom sensor points tracking
         self.custom_sensor_points = {}  # sensor_id -> {type, position, label}
+        self._sensor_dot_relayout_timer = QTimer(self)
+        self._sensor_dot_relayout_timer.setSingleShot(True)
+        self._sensor_dot_relayout_timer.timeout.connect(self._refresh_sensor_dot_layout_for_zoom)
         
         self.setupUi()
         self.connect_signals()
@@ -1030,8 +1033,7 @@ class DiagramWidget(QWidget):
         self.sensor_boxes.clear()
         self.overlay_items.clear()
         self.dot_items.clear()
-        self._role_label_rects = []
-        
+
         model = self.data_manager.diagram_model
         
         # Propagate circuit labels, fluid states, and pressure sides before building
@@ -1369,9 +1371,17 @@ class DiagramWidget(QWidget):
         mode_text = self.mode_combo.currentText() if getattr(self, 'mode_combo', None) else 'Drawing'
         is_analysis = (mode_text == 'Analysis')
         
+        role_dot_candidates = []
+        direct_custom_dots = []
+        port_canonical_roles = {}
+
         # Add dots for all in/out/sensor ports on all components
         for comp_id, item in self.component_items.items():
             comp_type = item.component_data.get('type')
+
+            if (self.data_manager.diagram_model.get('_simple_mode')
+                    and comp_type in ('SplitterManifold', 'CombinerManifold', 'Junction')):
+                continue
             
             for port_name, port in item.ports.items():
                 try:
@@ -1397,7 +1407,8 @@ class DiagramWidget(QWidget):
                         continue
                     if comp_type == 'CombinerManifold' and port_type == 'in':
                         continue
-                    pos = port.get_scene_position()
+                    port_pos = port.get_scene_position()
+                    pos = self._offset_role_dot_from_port(port_pos, port)
 
                     # Create meaningful role key for diagnostics
                     # For AirSensorArray, include curtain type for better mapping
@@ -1421,6 +1432,8 @@ class DiagramWidget(QWidget):
                             display_name = cres[0]
                     except Exception:
                         pass
+                    if display_name and display_name != role_key:
+                        port_canonical_roles.setdefault(display_name, role_key)
 
                     mapped_sensor = self.data_manager.get_mapped_sensor_for_role(role_key)
 
@@ -1432,8 +1445,18 @@ class DiagramWidget(QWidget):
                         elif val is not None:
                             label = str(val)
 
-                    self._add_role_dot(pos, role_key, label, port_item=port,
-                                       enabled=enabled)
+                    side = self._role_dot_side_for_port(port)
+                    role_dot_candidates.append({
+                        'component_id': comp_id,
+                        'port_item': port,
+                        'true_pos': port_pos,
+                        'ideal_pos': pos,
+                        'side': side,
+                        'role_key': role_key,
+                        'label': label,
+                        'enabled': enabled,
+                        'is_custom': False,
+                    })
 
         # Add custom sensor points
         custom_sensors = self.data_manager.diagram_model.get('custom_sensors', {})
@@ -1442,7 +1465,13 @@ class DiagramWidget(QWidget):
         for sensor_id, sensor_data in custom_sensors.items():
             pos_data = sensor_data['position']
             pos = QPointF(pos_data[0], pos_data[1])
+            side = self._normalize_chip_side(sensor_data.get('display_side'))
             sensor_type = sensor_data['type']
+
+            replacement_role = port_canonical_roles.get(sensor_id)
+            if replacement_role:
+                self._migrate_duplicate_custom_mapping(sensor_id, replacement_role)
+                continue
             
             # Use sensor_id as role_key for mapping
             mapped_sensor = self.data_manager.get_mapped_sensor_for_role(sensor_id)
@@ -1460,9 +1489,40 @@ class DiagramWidget(QWidget):
                     label = f"{val:.1f}"
                 elif val is not None:
                     label = str(val)
+
+            hosted = self._edge_host_for_custom_dot(pos)
+            if hosted:
+                role_dot_candidates.append({
+                    'component_id': hosted['component_id'],
+                    'port_item': None,
+                    'true_pos': pos,
+                    'ideal_pos': hosted['pos'],
+                    'side': hosted['side'],
+                    'role_key': sensor_id,
+                    'label': label,
+                    'enabled': True,
+                    'is_custom': True,
+                    'custom_sensor_data': sensor_data,
+                    'sensor_id': sensor_id,
+                    'component_rect': hosted['rect'],
+                })
+                continue
             
-            # Pass sensor_data for tooltip generation
-            self._add_role_dot(pos, sensor_id, label, is_custom=True, custom_sensor_data=sensor_data, sensor_id=sensor_id)
+            direct_custom_dots.append((pos, sensor_id, label, sensor_data, side))
+
+        for candidate in self._distribute_role_dot_candidates(role_dot_candidates):
+            self._add_role_dot(candidate['pos'], candidate['role_key'], candidate['label'],
+                               is_custom=candidate.get('is_custom', False),
+                               custom_sensor_data=candidate.get('custom_sensor_data'),
+                               sensor_id=candidate.get('sensor_id'),
+                               port_item=candidate.get('port_item'),
+                               enabled=candidate.get('enabled', True),
+                               side=candidate.get('chip_side', candidate['side']))
+
+        for pos, sensor_id, label, sensor_data, side in direct_custom_dots:
+            self._add_role_dot(pos, sensor_id, label, is_custom=True,
+                               custom_sensor_data=sensor_data,
+                               sensor_id=sensor_id, side=side)
         
         # TODO: Add sensors from sensor boxes
         # This will be implemented in Phase 2
@@ -1572,54 +1632,381 @@ class DiagramWidget(QWidget):
             return None
         return canon.replace('T_', '').replace('P_', 'P ')
 
-    def _label_side_for_role(self, role_key, custom_sensor_data=None, port_item=None):
-        if custom_sensor_data and custom_sensor_data.get('display_side'):
-            return custom_sensor_data['display_side']
+    def _normalize_chip_side(self, side):
+        side = (side or 'right').lower()
+        return {
+            'above': 'top',
+            'below': 'bottom',
+            'top': 'top',
+            'bottom': 'bottom',
+            'left': 'left',
+            'right': 'right',
+        }.get(side, 'right')
+
+    def _migrate_duplicate_custom_mapping(self, old_role, new_role):
+        """Move saved mappings from duplicate generated callouts to real ports."""
         try:
-            p = port_item.port_name if port_item is not None else ''
+            roles = self.data_manager.diagram_model.setdefault('sensor_roles', {})
+            if old_role in roles and new_role not in roles:
+                roles[new_role] = roles[old_role]
+            roles.pop(old_role, None)
         except Exception:
-            p = ''
-        if p in ('inlet', 'inlet_1') or p.startswith('inlet_circuit_'):
-            return 'above'
-        if p in ('outlet', 'outlet_1') or p.startswith('outlet_circuit_'):
-            return 'below'
-        if p in ('water_in_temp', 'water_out_temp', 'SP', 'RPM'):
-            return 'left'
+            pass
+
+    def _edge_host_for_custom_dot(self, pos):
+        """Return component edge metadata when a generated custom dot belongs
+        on an equipment edge. Free-air dots are intentionally left alone."""
+        host_types = {
+            'Compressor', 'Condenser', 'TXV', 'Evaporator', 'Distributor',
+            'Header', 'SplitterManifold', 'CombinerManifold', 'SensorBulb',
+            'HotGasBypassValve', 'HotGasLoop', 'RemoteLineEndpoint',
+        }
+        tolerance = 4.0
+        best = None
+
+        for comp_id, item in self.component_items.items():
+            comp_type = (item.component_data or {}).get('type')
+            if comp_type not in host_types:
+                continue
+            try:
+                mapped_rect = item.mapRectToScene(item.rect())
+                rect = mapped_rect.boundingRect() if hasattr(mapped_rect, 'boundingRect') else mapped_rect
+            except Exception:
+                continue
+            if not rect.isValid():
+                continue
+
+            within_x = rect.left() - tolerance <= pos.x() <= rect.right() + tolerance
+            within_y = rect.top() - tolerance <= pos.y() <= rect.bottom() + tolerance
+            if not (within_x and within_y):
+                continue
+
+            edge_distances = [
+                ('left', abs(pos.x() - rect.left())),
+                ('right', abs(pos.x() - rect.right())),
+                ('top', abs(pos.y() - rect.top())),
+                ('bottom', abs(pos.y() - rect.bottom())),
+            ]
+            side, distance = min(edge_distances, key=lambda pair: pair[1])
+            if distance > tolerance:
+                continue
+
+            x = max(rect.left() + 8, min(rect.right() - 8, pos.x()))
+            y = max(rect.top() + 8, min(rect.bottom() - 8, pos.y()))
+            if side == 'left':
+                snapped = QPointF(rect.left(), y)
+            elif side == 'right':
+                snapped = QPointF(rect.right(), y)
+            elif side == 'top':
+                snapped = QPointF(x, rect.top())
+            else:
+                snapped = QPointF(x, rect.bottom())
+
+            if best is None or distance < best['distance']:
+                best = {
+                    'component_id': comp_id,
+                    'side': side,
+                    'pos': snapped,
+                    'rect': rect,
+                    'distance': distance,
+                }
+
+        return best
+
+    def _offset_role_dot_from_port(self, scene_pos, port_item):
+        """Draw mapping dots on component perimeters, not in open air."""
+        if port_item is None:
+            return scene_pos
+
+        try:
+            comp = port_item.parent_component
+            comp_type = (comp.component_data or {}).get('type')
+            port_name = port_item.port_name or ''
+            port_def = port_item.port_def or {}
+        except Exception:
+            return scene_pos
+
+        try:
+            mapped_rect = comp.mapRectToScene(comp.rect())
+            rect = mapped_rect.boundingRect() if hasattr(mapped_rect, 'boundingRect') else mapped_rect
+        except Exception:
+            try:
+                rect = comp.sceneBoundingRect()
+            except Exception:
+                return scene_pos
+
+        def clamp(value, lo, hi):
+            if hi < lo:
+                return value
+            return max(lo, min(hi, value))
+
+        def on_top(x):
+            return QPointF(clamp(x, rect.left() + 8, rect.right() - 8), rect.top())
+
+        def on_bottom(x):
+            return QPointF(clamp(x, rect.left() + 8, rect.right() - 8), rect.bottom())
+
+        def on_left(y):
+            return QPointF(rect.left(), clamp(y, rect.top() + 8, rect.bottom() - 8))
+
+        def on_right(y):
+            return QPointF(rect.right(), clamp(y, rect.top() + 8, rect.bottom() - 8))
+
+        # Evaporator flow is top-in / bottom-out. Keep the mapping dots on
+        # those real header edges so the callouts match the refrigerant path.
+        if comp_type == 'Evaporator':
+            if port_name.startswith('inlet_circuit_'):
+                return on_top(scene_pos.x())
+            elif port_name.startswith('outlet_circuit_'):
+                return on_bottom(scene_pos.x())
+            elif port_name.startswith('sensor_top_'):
+                return on_top(scene_pos.x())
+            elif port_name.startswith('sensor_bottom_'):
+                return on_bottom(scene_pos.x())
+            elif port_name == 'dist_inlet':
+                return on_top(scene_pos.x())
+            elif port_name == 'dist_outlet':
+                return on_bottom(scene_pos.x())
+            else:
+                return on_right(scene_pos.y())
+
+        elif comp_type == 'Condenser':
+            if port_name == 'water_flow_gpm':
+                return on_right(rect.center().y())
+            elif port_name == 'water_in_temp':
+                return on_left(rect.top() + rect.height() * 0.35)
+            elif port_name == 'water_out_temp':
+                return on_left(rect.top() + rect.height() * 0.65)
+            elif port_name == 'inlet':
+                return on_left(rect.top() + 18)
+            elif port_name == 'outlet':
+                return on_right(rect.bottom() - 18)
+            else:
+                return on_right(scene_pos.y())
+
+        elif comp_type == 'Compressor':
+            if port_name == 'SP':
+                return on_left(rect.top() + 18)
+            elif port_name == 'DP':
+                return on_right(rect.top() + 18)
+            elif port_name == 'RPM':
+                return on_left(rect.bottom() - 18)
+            elif port_name == 'inlet':
+                return on_left(rect.top() + 32)
+            elif port_name == 'outlet':
+                return on_right(rect.bottom() - 32)
+
+        elif comp_type == 'TXV':
+            if port_name == 'inlet':
+                return on_left(rect.top() + 18)
+            elif port_name == 'outlet':
+                return on_right(rect.bottom() - 18)
+            elif port_name == 'bulb':
+                return on_right(rect.center().y())
+
+        elif comp_type in ('SplitterManifold', 'CombinerManifold', 'Distributor', 'Header'):
+            if port_name.startswith(('inlet', 'in_')):
+                return on_top(scene_pos.x())
+            elif port_name.startswith(('outlet', 'out_')):
+                return on_bottom(scene_pos.x())
+            else:
+                return on_right(scene_pos.y())
+
+        else:
+            try:
+                px, py = port_def.get('position', [0.5, 0.5])
+                if px <= 0.05:
+                    return on_left(scene_pos.y())
+                elif px >= 0.95:
+                    return on_right(scene_pos.y())
+                elif py <= 0.05:
+                    return on_top(scene_pos.x() + 8)
+                elif py >= 0.95:
+                    return on_bottom(scene_pos.x() + 8)
+                else:
+                    return on_right(scene_pos.y())
+            except Exception:
+                return on_right(scene_pos.y())
+
+        return scene_pos
+
+    def _role_dot_side_for_port(self, port_item):
+        """Return the component side used for per-edge dot distribution."""
+        if port_item is None:
+            return 'right'
+
+        try:
+            comp = port_item.parent_component
+            comp_type = (comp.component_data or {}).get('type')
+            port_name = port_item.port_name or ''
+            port_def = port_item.port_def or {}
+        except Exception:
+            return 'right'
+
+        if comp_type == 'Evaporator':
+            if port_name.startswith(('inlet_circuit_', 'dist_inlet')):
+                return 'top'
+            if port_name.startswith(('outlet_circuit_', 'dist_outlet')):
+                return 'bottom'
+            if port_name.startswith('sensor_top_'):
+                return 'top'
+            if port_name.startswith('sensor_bottom_'):
+                return 'bottom'
+            return 'right'
+
+        if comp_type == 'Condenser':
+            if port_name in ('water_in_temp', 'water_out_temp', 'inlet'):
+                return 'left'
+            return 'right'
+
+        if comp_type == 'Compressor':
+            if port_name in ('SP', 'RPM', 'inlet'):
+                return 'left'
+            return 'right'
+
+        if comp_type == 'TXV':
+            if port_name == 'inlet':
+                return 'left'
+            return 'right'
+
+        if comp_type in ('SplitterManifold', 'CombinerManifold', 'Distributor', 'Header'):
+            if port_name.startswith(('inlet', 'in_')):
+                return 'top'
+            if port_name.startswith(('outlet', 'out_')):
+                return 'bottom'
+            return 'right'
+
+        try:
+            px, py = port_def.get('position', [0.5, 0.5])
+            if px <= 0.05:
+                return 'left'
+            if px >= 0.95:
+                return 'right'
+            if py <= 0.05:
+                return 'top'
+            if py >= 0.95:
+                return 'bottom'
+        except Exception:
+            pass
         return 'right'
 
-    def _candidate_role_label_rect(self, x, y, w, h, side, attempt):
-        r = 8
-        gap = 2
-        offsets = [0, -1, 1, -2, 2, -3, 3, -4, 4]
-        if side == 'right':
-            lane = attempt // 2
-            sign = -1 if attempt % 2 else 1
-            return QRectF(x + r + gap, y - 7 + sign * lane * 12, w, h)
-        if side == 'left':
-            lane = attempt // 2
-            sign = -1 if attempt % 2 else 1
-            return QRectF(x - r - gap - w, y - 7 + sign * lane * 12, w, h)
-        row = attempt // len(offsets)
-        col = offsets[attempt % len(offsets)]
-        px = x - w / 2 + col * 24
-        py = y - 16 - row * 12 if side == 'above' else y + r + gap + row * 12
-        return QRectF(px, py, w, h)
+    def _distribute_role_dot_candidates(self, candidates):
+        """Spread role dots along each component edge to prevent dot overlap."""
+        if not candidates:
+            return []
 
-    def _place_role_label(self, txt, x, y, side):
-        bounds = txt.boundingRect()
-        last_rect = None
-        for attempt in range(45):
-            rect = self._candidate_role_label_rect(x, y, bounds.width(), bounds.height(), side, attempt)
-            last_rect = rect
-            padded = rect.adjusted(-2, -1, 2, 1)
-            if not any(padded.intersects(existing) for existing in self._role_label_rects):
-                break
-        txt.setPos(last_rect.x(), last_rect.y())
-        self._role_label_rects.append(last_rect.adjusted(-2, -1, 2, 1))
+        groups = {}
+        for candidate in candidates:
+            key = (candidate.get('component_id'), candidate.get('side') or 'right')
+            groups.setdefault(key, []).append(candidate)
+
+        distributed = []
+        for (_component_id, side), group in groups.items():
+            if len(group) == 1:
+                group[0]['pos'] = group[0]['ideal_pos']
+                group[0]['chip_side'] = self._outward_side_for_dot(
+                    group[0]['pos'], group[0].get('port_item'), side
+                )
+                distributed.extend(group)
+                continue
+
+            vertical = side in ('left', 'right')
+            coords = sorted(
+                [(c['ideal_pos'].y() if vertical else c['ideal_pos'].x(), c) for c in group],
+                key=lambda pair: pair[0]
+            )
+
+            try:
+                comp_rect = coords[0][1].get('component_rect')
+                if not comp_rect or not comp_rect.isValid():
+                    comp_rect = coords[0][1]['port_item'].parent_component.sceneBoundingRect()
+            except Exception:
+                comp_rect = QRectF()
+
+            margin = 8
+            title_margin = 24
+            if vertical and comp_rect.isValid():
+                lo = comp_rect.top() + title_margin
+                hi = comp_rect.bottom() - margin
+            elif comp_rect.isValid():
+                lo = comp_rect.left() + margin
+                hi = comp_rect.right() - margin
+            else:
+                lo = min(coord for coord, _candidate in coords)
+                hi = max(coord for coord, _candidate in coords)
+
+            if hi < lo and comp_rect.isValid():
+                if vertical:
+                    lo = comp_rect.top() + margin
+                    hi = comp_rect.bottom() - margin
+                else:
+                    lo = comp_rect.left() + margin
+                    hi = comp_rect.right() - margin
+
+            screen_spacing = 24 if vertical else 34
+            spacing = max(18, screen_spacing / self._current_view_scale())
+            values = [max(lo, min(hi, coord)) for coord, _candidate in coords]
+            for idx in range(1, len(values)):
+                values[idx] = max(values[idx], values[idx - 1] + spacing)
+
+            overflow = values[-1] - hi
+            if overflow > 0:
+                values = [value - overflow for value in values]
+                for idx in range(len(values) - 2, -1, -1):
+                    values[idx] = min(values[idx], values[idx + 1] - spacing)
+
+            underflow = lo - values[0]
+            if underflow > 0:
+                values = [value + underflow for value in values]
+
+            if values[-1] > hi and len(values) > 1:
+                if vertical:
+                    ideal_center = sum(coord for coord, _candidate in coords) / len(coords)
+                    center = max(lo, min(hi, ideal_center))
+                    span = spacing * (len(values) - 1)
+                    start = center - span / 2
+                    values = [start + spacing * idx for idx in range(len(values))]
+                else:
+                    step = (hi - lo) / (len(values) - 1) if hi > lo else 0
+                    values = [lo + step * idx for idx in range(len(values))]
+
+            for value, (_ideal_coord, candidate) in zip(values, coords):
+                ideal = candidate['ideal_pos']
+                if vertical:
+                    candidate['pos'] = QPointF(ideal.x(), value)
+                else:
+                    candidate['pos'] = QPointF(value, ideal.y())
+                candidate['chip_side'] = self._outward_side_for_dot(candidate['pos'], candidate.get('port_item'), side)
+                distributed.append(candidate)
+
+        return distributed
+
+    def _outward_side_for_dot(self, dot_pos, port_item, fallback='right'):
+        """Choose the value-chip side from geometry so chips extend away from components."""
+        try:
+            rect = port_item.parent_component.sceneBoundingRect()
+        except Exception:
+            return fallback or 'right'
+
+        tolerance = 2
+        if dot_pos.y() <= rect.top() + tolerance:
+            return 'top'
+        if dot_pos.y() >= rect.bottom() - tolerance:
+            return 'bottom'
+        if dot_pos.x() <= rect.left() + tolerance:
+            return 'left'
+        if dot_pos.x() >= rect.right() - tolerance:
+            return 'right'
+
+        dx = dot_pos.x() - rect.center().x()
+        dy = dot_pos.y() - rect.center().y()
+        if abs(dx) >= abs(dy):
+            return 'right' if dx >= 0 else 'left'
+        return 'bottom' if dy >= 0 else 'top'
 
     def _add_role_dot(self, scene_pos, role_key, label_text, is_custom=False,
                       custom_sensor_data=None, sensor_id=None, port_item=None,
-                      enabled=True):
+                      enabled=True, side='right'):
         from PyQt6.QtWidgets import QGraphicsEllipseItem, QGraphicsTextItem, QGraphicsRectItem, QGraphicsLineItem
         from PyQt6.QtGui import QBrush, QPen
 
@@ -1640,6 +2027,7 @@ class DiagramWidget(QWidget):
             disabled_color.setAlphaF(0.45)
             dot.setBrush(QBrush(disabled_color))
             dot.setPen(QPen(QColor('#404040'), 1))
+            dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
             dot.setZValue(100)
             dot.setPos(scene_pos)
             dot.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1691,6 +2079,7 @@ class DiagramWidget(QWidget):
                 dot.setPen(QPen(QColor(Qt.GlobalColor.black), 1))
                 dot.setScale(1.0)
         
+        dot.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations, True)
         dot.setZValue(100)
         dot.setPos(scene_pos)
         dot.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -1793,47 +2182,23 @@ class DiagramWidget(QWidget):
         
         # Add double-click functionality for sensor information popup
         def on_double_click(event):
-            print(f"[DOUBLE_CLICK] Double-click detected on sensor dot!")
-            print(f"[DOUBLE_CLICK] Event button: {event.button()}")
-            print(f"[DOUBLE_CLICK] Is custom: {is_custom}, sensor_id: {sensor_id}")
-            print(f"[DOUBLE_CLICK] Mapped sensor: {mapped_sensor}")
-            print(f"[DOUBLE_CLICK] Role key: {role_key}")
-            
             if event.button() == Qt.MouseButton.LeftButton:
                 # Cancel pending single-click action
                 if single_click['timer'] and single_click['timer'].isActive():
                     single_click['timer'].stop()
                 if is_custom and sensor_id:
-                    print(f"[DOUBLE_CLICK] Showing custom sensor dialog for: {sensor_id}")
                     # Show custom sensor properties in a popup dialog
                     self.show_sensor_info_dialog(sensor_id, custom_sensor_data, is_custom=True)
                 elif mapped_sensor:
-                    print(f"[DOUBLE_CLICK] Showing mapped sensor dialog for: {mapped_sensor}")
                     # Show mapped sensor information
                     self.show_sensor_info_dialog(mapped_sensor, None, is_custom=False, role_key=role_key)
                 else:
                     # Unmapped role: still show diagnostics to explain what's missing
-                    print(f"[DOUBLE_CLICK] Role unmapped; showing diagnostics for role: {role_key}")
                     self.show_sensor_info_dialog(f"(Unmapped) {role_key}", None, is_custom=False, role_key=role_key)
                 # no-op: handled above (custom, mapped, or unmapped diagnostics)
-            else:
-                print(f"[DOUBLE_CLICK] Not a left button click, ignoring")
             event.accept()
         
         dot.mouseDoubleClickEvent = on_double_click
-        
-        # Add a simple test to verify double-click is working
-        def test_double_click(event):
-            print(f"[TEST_DOUBLE_CLICK] Test double-click event triggered!")
-            print(f"[TEST_DOUBLE_CLICK] Event button: {event.button()}")
-            on_double_click(event)
-        
-        # Try both approaches to ensure double-click works
-        try:
-            dot.mouseDoubleClickEvent = test_double_click
-            print(f"[TEST_DOUBLE_CLICK] Double-click handler assigned successfully")
-        except Exception as e:
-            print(f"[TEST_DOUBLE_CLICK] Error assigning double-click handler: {e}")
         
         # Add to scene and track
         self.scene.addItem(dot)
@@ -1847,16 +2212,46 @@ class DiagramWidget(QWidget):
                 visible_label = f"{short_label} {label_text}".strip()
             if not visible_label:
                 return
-            label = QGraphicsTextItem(visible_label)
-            f = label.font()
-            f.setPointSize(6)
-            label.setFont(f)
-            label.setDefaultTextColor(QColor('#222222'))
-            label.setZValue(100)
-            side = self._label_side_for_role(role_key, custom_sensor_data, port_item)
-            self._place_role_label(label, scene_pos.x(), scene_pos.y(), side)
-            self.scene.addItem(label)
-            self.overlay_items.append(label)
+            self._attach_value_chip(dot, visible_label, side, DOT_RADIUS)
+
+    def _attach_value_chip(self, dot, text, side, dot_radius):
+        """Small value tag anchored to the dot itself. Because the dot ignores
+        view transforms, children live in screen pixels — the chip stays glued
+        to its dot at every zoom level with no collision search needed."""
+        from PyQt6.QtWidgets import QGraphicsSimpleTextItem, QGraphicsPathItem
+        from PyQt6.QtGui import QBrush, QPen, QPainterPath
+
+        label = QGraphicsSimpleTextItem(text)
+        f = label.font()
+        f.setPointSizeF(7.5)
+        label.setFont(f)
+        label.setBrush(QBrush(QColor('#1F3B5C')))
+        br = label.boundingRect()
+
+        pad_x, pad_y = 3.0, 1.0
+        gap = dot_radius + 4
+        if side == 'left':
+            lx, ly = -gap - br.width() - pad_x, -br.height() / 2
+        elif side == 'top':
+            lx, ly = -br.width() / 2, -gap - br.height() - pad_y
+        elif side == 'bottom':
+            lx, ly = -br.width() / 2, gap + pad_y
+        else:  # right (default)
+            lx, ly = gap + pad_x, -br.height() / 2
+
+        chip_rect = QRectF(lx - pad_x, ly - pad_y,
+                           br.width() + 2 * pad_x, br.height() + 2 * pad_y)
+        path = QPainterPath()
+        path.addRoundedRect(chip_rect, 3, 3)
+        chip = QGraphicsPathItem(path, dot)
+        chip.setBrush(QBrush(QColor(255, 255, 255, 150)))
+        chip.setPen(QPen(QColor(31, 59, 92, 60), 0.5))
+        chip.setZValue(1)
+
+        label.setParentItem(chip)
+        label.setPos(lx, ly)
+        label.setZValue(2)
+
     def _attach_sensor_handlers_to_box(self, box_item):
         """Attach mapping handlers to sensor dots in a SensorBoxItem."""
         for sensor_id, sensor_info in box_item.sensors.items():
@@ -2104,6 +2499,7 @@ class DiagramWidget(QWidget):
         
         # Apply the zoom
         self.view.scale(factor, factor)
+        self._schedule_sensor_dot_relayout()
         
         event.accept()
     
@@ -2115,6 +2511,7 @@ class DiagramWidget(QWidget):
             self.zoom_factor = 10.0
             return
         self.view.scale(factor, factor)
+        self._schedule_sensor_dot_relayout()
     
     def zoom_out(self):
         """Zoom out the view - limited by diagram width."""
@@ -2138,12 +2535,14 @@ class DiagramWidget(QWidget):
         
         self.zoom_factor = new_zoom
         self.view.scale(factor, factor)
+        self._schedule_sensor_dot_relayout()
     
     def zoom_reset(self):
         """Reset zoom to 100%."""
         # Reset the view transform
         self.view.resetTransform()
         self.zoom_factor = 1.0
+        self._schedule_sensor_dot_relayout()
     
     def zoom_to_fit(self):
         """Zoom to fit all items in view."""
@@ -2160,9 +2559,29 @@ class DiagramWidget(QWidget):
             
             # Update zoom factor
             self.zoom_factor = self.view.transform().m11()
+            self._schedule_sensor_dot_relayout()
             print(f"[ZOOM FIT] Fitted all items in view (zoom: {self.zoom_factor:.2f}x)")
         else:
             print("[ZOOM FIT] No items to fit")
+
+    def _current_view_scale(self):
+        try:
+            scale = abs(self.view.transform().m11())
+            return scale if scale > 0.01 else 0.01
+        except Exception:
+            return 1.0
+
+    def _schedule_sensor_dot_relayout(self):
+        try:
+            self._sensor_dot_relayout_timer.start(150)
+        except Exception:
+            pass
+
+    def _refresh_sensor_dot_layout_for_zoom(self):
+        try:
+            self.build_scene_from_model()
+        except Exception as exc:
+            print(f"[ZOOM] Sensor dot relayout failed: {exc}")
     
     # ------------------------------------------------------------------
     def on_new_diagram_clicked(self):
