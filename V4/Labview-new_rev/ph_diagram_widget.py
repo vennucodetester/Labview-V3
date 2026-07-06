@@ -283,7 +283,12 @@ class CycleDomeWidget(QWidget):
 
         by_circuit = self._points(row)
         order = ['2b', '3a', '4a', '4b', '1', '2a', '2b']
-        display_labels = {'2b': '1', '3a': '2', '4b': '3', '1': '4'}
+        # 4a = condenser OUTLET (textbook point 3; where negative subcooling is
+        # flagged — sits inside the dome when two-phase). 4b = TXV INLET, which
+        # is further down the liquid line and usually subcooled (3'). Showing
+        # BOTH makes the "condensation completes in the liquid line" case
+        # visible instead of contradicting the warning.
+        display_labels = {'2b': '1', '3a': '2', '4a': '3', '4b': "3'", '1': '4'}
         plotted = []
         all_x, all_y = [], []
         circuit_lookup = {c['key']: c for c in self.circuits}
@@ -299,6 +304,12 @@ class CycleDomeWidget(QWidget):
             color = circuit['color']
             xs, ys = zip(*coords)
             self.plot.plot(xs, ys, pen=pg.mkPen(color, width=3))
+            # Authoritative negative-subcooling flag = the engine's own
+            # condenser SC value (same number the diagram warning uses), not a
+            # geometric guess. Shared → 'S.C'; cassette → 'S.C-{ab}'.
+            ab = circuit.get('ab', '')
+            cond_sc = self._num(row, f'S.C-{ab}', 'S.C')
+            cond_sc_negative = cond_sc is not None and cond_sc < 0
             for point_name, (x, y) in pts.items():
                 self.plot.plot([x], [y], pen=None, symbol='o', symbolSize=8,
                                symbolBrush=pg.mkBrush(color), symbolPen=pg.mkPen('w', width=1))
@@ -311,6 +322,12 @@ class CycleDomeWidget(QWidget):
                     self.plot.plot([x], [y], pen=None, symbol='o', symbolSize=22,
                                    symbolBrush=pg.mkBrush(0, 0, 0, 0),
                                    symbolPen=pg.mkPen('#c0392b', width=3))
+                # Condenser outlet with negative subcooling: ring it red so
+                # the P-h visibly agrees with the diagram warning.
+                if point_name == '4a' and cond_sc_negative:
+                    self.plot.plot([x], [y], pen=None, symbol='o', symbolSize=20,
+                                   symbolBrush=pg.mkBrush(0, 0, 0, 0),
+                                   symbolPen=pg.mkPen('#c0392b', width=2.5))
             plotted.append(circuit['display'])
             all_x.extend(xs)
             all_y.extend(ys)

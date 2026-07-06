@@ -146,6 +146,41 @@ SPEC (DIAGNOSIS_ROADMAP §1d, which was NOT implemented):
   `WORK_2E_TOPOLOGY_CYCLE_OK`; `python -m py_compile ph_diagram_widget.py`
   passed.
 
+**WORK ITEM 2f — P-h omits the condenser-outlet point (owner: "P-h shows
+subcooling but warning says negative") — FIXED 2026-07-06.**
+FIX (ph_diagram_widget.py): condenser outlet `4a` now labelled "3" and TXV
+inlet `4b` labelled "3'" (both were computed & plotted; 4a was just
+unlabelled). The `4a` marker is ringed RED when the engine's condenser
+subcooling `S.C` (shared) / `S.C-{ab}` (cassette) is negative — authoritative,
+same value as the diagram warning (not a geometric dome guess, which proved
+unreliable at the enthalpy-reference boundary and was discarded). Verified on
+IDD5SL12WE: S.C=−6.44; 4a(cond out) h=181.5 → "3" (red-ringed), 4b(TXV in)
+h=151.6 → "3'"; the ~70 kJ/kg gap between them is the liquid-line condensing
+now visible. Cassette (RLN5MA) redraw clean; py_compile OK.
+(original finding preserved below)
+
+**WORK ITEM 2f (original finding) — VERIFIED 2026-07-05.**
+ROOT CAUSE (code): `ph_diagram_widget.py:286`
+`display_labels = {'2b':'1','3a':'2','4b':'3','1':'4'}` — point "3" is the
+TXV INLET (`4b`), which IS subcooled (SC +25.5°F on the shown case), so it
+plots left of the bubble line and looks healthy. But the "Negative
+Subcooling" CRITICAL comes from the condenser OUTLET (`4a`, `S.C`), which is
+two-phase (inside the dome) and is NOT plotted at all — so the chart appears
+to contradict the warning. `4a` IS computed (line 234) but omitted from the
+cycle.
+This is the real "condensation completes in the liquid line" case: condenser
+exit two-phase (neg SC = the warning), TXV inlet subcooled (+25.5). Both are
+real and physically distinct.
+FIX: plot BOTH `4a` (condenser outlet) and `4b` (TXV inlet) as distinct
+labelled points on the cycle, with the liquid-line segment between them, so
+the two-phase→subcooled recovery is visible. Highlight `4a` when it sits
+inside the dome (ties the P-h to the negative-SC finding). Keep the process
+diagram's condenser-SC chip and TXV-SC chip consistent with these two
+points.
+  Done when: on the negative-condenser-SC test, the P-h shows the condenser
+  outlet inside/at the dome AND the TXV inlet subcooled to its left, so the
+  warning and the chart visibly agree.
+
 **WORK ITEM 3 — ✅ Codex re-verification of D1–D8 (diagnosis Phase 1; owner acceptance still yours).**
 These are coded but never accepted by the owner, and screenshots have been
 failing them. After Work Items 1–2 land, the owner re-runs the
